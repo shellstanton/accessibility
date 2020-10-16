@@ -188,8 +188,8 @@ q$osm_lines$motorspeedmps <- q$osm_lines$motorspeedkph/3.6
 q$osm_lines$time_secs <- 42.43/q$osm_lines$motorspeedmps
 
 # Convert to raster, matching up with the NDVI raster resolution and extent
-# Note that the fasterize function only works with polygons, so adding a buffer to the roads of ~5.5m
-roads.poly <- st_buffer(q$osm_line, 0.00005)
+# Note that the fasterize function only works with polygons, so adding a buffer to the roads of ~30m
+roads.poly <- st_buffer(q$osm_line, 0.00015)
 ```
 
 ```
@@ -209,7 +209,7 @@ friction_surface_motor <- mosaic(osm_road_raster, ndvi_assigned, fun = min, tole
 
 
 writeRaster(friction_surface_motor,
-            "./data/friction_raster_motor",
+            "./outputs/friction_raster_motor",
             format = "GTiff", overwrite=TRUE)
 ```
 
@@ -241,7 +241,7 @@ trans_motor <- transition(friction_surface_motor, transitionFunction = function(
 leastcost_motor <-  accCost(trans_motor, as_Spatial(healthfac))
 
 writeRaster(leastcost_motor,
-            "./data/leastcost_raster_motor",
+            "./outputs/leastcost_raster_motor",
             format = "GTiff", overwrite=TRUE)
 ```
 Now create some plots of the data.
