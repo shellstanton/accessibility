@@ -17,17 +17,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r packages, warning=FALSE, message=FALSE}
-library(sf)
-#remotes::install_github("r-spatial/rgee")
-library(rgee)
-library(mapview)
-library(googledrive)
-library(osmdata)
-library(ggplot2)
-library(raster)
-library(gdistance)
-library(ggplot2)
-library(fasterize)
+## load required packages, and install packages which are potentially missing on client computers
+list.of.packages <- c("sf", "rgee", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, library, character.only = TRUE)
 ```
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once. 
