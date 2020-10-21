@@ -1,7 +1,7 @@
 ---
 title: "Accessibility - global vs local"
 author: "Michelle Stanton"
-date: "Last compiled on 20 October, 2020"
+date: "Last compiled on 21 October, 2020"
 output: 
   html_document:
     keep_md: true
@@ -10,24 +10,37 @@ output:
 
 
 
-### NDVI data generation using rgee
-
-
 
 
 ```r
 ## load required packages, and install packages which are potentially missing on client computers
-list.of.packages <- c("sf", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize", "remotes", "rgdal")
+list.of.packages <- c("sf", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize", "remotes", "rgdal", "stars", "geojsonio")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
+```
 
+
+### NDVI data generation using rgee
+
+I keep having issues with the rgee package, so I suggest at some point we split this Rmd file so that we keep the GEE part in one file, and the cost-distance surface generation in another. Users can then either have the option of generating the NDVI in R, or using GEE directly, with the link to the code provided.
+
+
+```r
 ## install rgee from github
 remotes::install_github("r-spatial/rgee")
+```
+
+```
+## Skipping install of 'rgee' from a github remote, the SHA1 (bdd5a30d) has not changed since last install.
+##   Use `force = TRUE` to force installation
+```
+
+```r
 library(rgee)
 ```
 
-This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once. 
+This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once, but I keep having issues and have to start from scratch. 
 
 ```r
 ee_install()
@@ -36,17 +49,15 @@ ee_install()
 Once completed it should say 'Well done! rgee was successfully set up in your system.' and will then prompt you to restart your system. It also suggests running ee_check however there may currently be an issue with this function so I suggest you don't run it.
 Then, initialise GEE. This will check whether you have everything set up to use GEE via R. If you don't additional steps will be described.
 
-We then initialise the rgee package. 
+We then initialise the rgee package. Once rgee is installed I believe you only need to do this once.
 
 Note that you need to link to a Google account that has been given GEE access to be able to complete this stage. As we'll also be using Google Drive for downloading and uploading data, we also need to include 'drive=TRUE'. 
 
 
 
 ```r
-ee_Initialize(email = 'shell.stanton82@gmail.com', drive = TRUE)
+ee_Initialize(drive = TRUE)
 ```
-
-I think you also only need to run this once, but I'm not 100% sure.
 
 Now we can use R to run code on Google Earth Engine. Note that lots of examples of translating GEE syntax to be used in rgee can be found here url{https://csaybar.github.io/rgee-examples/}.
 
@@ -62,7 +73,7 @@ bbymax <- -10.73
 
 
 ```r
-aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, -bbymax), c(bbxmax, bbymax), c(bbxmax, bbymin), c(bbxmin, -bbymin)))
+aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax), c(bbxmax, bbymax), c(bbxmax, bbymin), c(bbxmin, bbymin)))
 ```
 
 Read in the Landsat 8 Tier 1 dataset
@@ -110,7 +121,6 @@ View output
 
 ```r
 Map$centerObject(aoi)
-#Map$addLayer(medNDVIaoi)
 
 Map$addLayer(
   eeObject=medNDVIaoi,
@@ -129,6 +139,15 @@ med_ndvi <- ee_as_raster(
   scale = 30,
   via = 'drive'
 )
+```
+
+The TIFF file is stored in a temporary folder, which we can then write to our data folder. I'll write the code to save this as NDVIgee.tif for now rather than overwrite the NDVIexample.tif that is currently there (although both should be the same). The 'eval' parameter is still set to FALSE.
+
+
+```r
+writeRaster(med_ndvi,
+            "./data/NDVIgee",
+            format = "GTiff", overwrite=TRUE)
 ```
 
 ### OpenStreetMap data
@@ -155,7 +174,8 @@ We now want to assign speeds to the NDVI pixels plus the roads
 
 
 ```r
-# Temporarily read in NDVI from folder, downloaded from GEE
+# Temporarily read in NDVIexample from folder, which has been directly downloaded from GEE.
+# We could replace this with med_ndvi if rgee continues to be reliable.
 ndvipath <- "./data/NDVIexample.tif"
 ndvi <- raster(ndvipath)
 
@@ -219,15 +239,6 @@ First, add in health facility locations. Currently I'm reading in the facilities
 healthfac <- st_read("./data/healthfacexample.shp")
 ```
 
-```
-## Reading layer `healthfacexample' from data source `C:\Users\Joshua.Longbottom\Dropbox\PhD\Collaboration projects\accessibility_comparison\accessibility\data\healthfacexample.shp' using driver `ESRI Shapefile'
-## Simple feature collection with 4 features and 21 fields
-## geometry type:  POINT
-## dimension:      XY
-## bbox:           xmin: 33.49996 ymin: -11.22941 xmax: 33.57893 ymax: -10.83907
-## geographic CRS: WGS 84
-```
-
 
 ```r
 # First calculate the transition matrix
@@ -256,4 +267,4 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
     guides(fill=guide_legend(title="Time (mins)"))
 ```
 
-![](access_global_local_files/figure-html/unnamed-chunk-13-1.png)<!-- -->
+![](access_global_local_files/figure-html/unnamed-chunk-15-1.png)<!-- -->
