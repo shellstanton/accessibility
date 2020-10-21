@@ -1,7 +1,7 @@
 ---
 title: "Accessibility - global vs local"
 author: "Michelle Stanton"
-date: "16/10/2020"
+date: "Last compiled on 20 October, 2020"
 output: 
   html_document:
     keep_md: true
@@ -16,17 +16,15 @@ output:
 
 
 ```r
-library(sf)
-#remotes::install_github("r-spatial/rgee")
+## load required packages, and install packages which are potentially missing on client computers
+list.of.packages <- c("sf", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize", "remotes", "rgdal")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, library, character.only = TRUE)
+
+## install rgee from github
+remotes::install_github("r-spatial/rgee")
 library(rgee)
-library(mapview)
-library(googledrive)
-library(osmdata)
-library(ggplot2)
-library(raster)
-library(gdistance)
-library(ggplot2)
-library(fasterize)
 ```
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once. 
@@ -44,9 +42,8 @@ Note that you need to link to a Google account that has been given GEE access to
 
 
 
-
 ```r
-ee_Initialize(email = 'shell.stanton82@gmail.com',drive=TRUE)
+ee_Initialize(email = 'shell.stanton82@gmail.com', drive = TRUE)
 ```
 
 I think you also only need to run this once, but I'm not 100% sure.
@@ -223,7 +220,7 @@ healthfac <- st_read("./data/healthfacexample.shp")
 ```
 
 ```
-## Reading layer `healthfacexample' from data source `C:\Users\stantom1\Dropbox (LSTM)\Accessibility\git_access\accessibility\data\healthfacexample.shp' using driver `ESRI Shapefile'
+## Reading layer `healthfacexample' from data source `C:\Users\Joshua.Longbottom\Dropbox\PhD\Collaboration projects\accessibility_comparison\accessibility\data\healthfacexample.shp' using driver `ESRI Shapefile'
 ## Simple feature collection with 4 features and 21 fields
 ## geometry type:  POINT
 ## dimension:      XY
@@ -248,6 +245,7 @@ Now create some plots of the data.
 
 
 ```r
+## warning for removing NA pixels is masked
 lcm_df <- as.data.frame(leastcost_motor, xy = TRUE)
 lcm_df$mins <- lcm_df$layer/60
 
@@ -256,10 +254,6 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
     geom_sf(data=healthfac, size=2, colour="red")+
     guides(fill=guide_legend(title="Time (mins)"))
-```
-
-```
-## Warning: Removed 4 rows containing missing values (geom_raster).
 ```
 
 ![](access_global_local_files/figure-html/unnamed-chunk-13-1.png)<!-- -->

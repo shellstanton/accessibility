@@ -1,7 +1,7 @@
 ---
 title: "Accessibility - global vs local"
 author: "Michelle Stanton"
-date: "16/10/2020"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document:
     keep_md: true
@@ -16,12 +16,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 
-```{r packages, warning=FALSE, message=FALSE}
+```{r packages, warning=FALSE, message=FALSE, results=FALSE}
 ## load required packages, and install packages which are potentially missing on client computers
-list.of.packages <- c("sf", "rgee", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize")
+list.of.packages <- c("sf", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize", "remotes", "rgdal", "stars", "geojsonio")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, library, character.only = TRUE)
+
+## install rgee from github
+remotes::install_github("r-spatial/rgee")
+library(rgee)
 ```
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once. 
@@ -37,9 +41,8 @@ We then initialise the rgee package.
 Note that you need to link to a Google account that has been given GEE access to be able to complete this stage. As we'll also be using Google Drive for downloading and uploading data, we also need to include 'drive=TRUE'. 
 
 
-
 ```{r, eval=F}
-ee_Initialize(email = 'shell.stanton82@gmail.com',drive=TRUE)
+ee_Initialize(email = 'shell.stanton82@gmail.com', drive = TRUE)
 ```
 
 I think you also only need to run this once, but I'm not 100% sure.
@@ -194,7 +197,7 @@ writeRaster(friction_surface_motor,
 
 First, add in health facility locations. Currently I'm reading in the facilities around Vwaza that have rHAT diagnostics, but will edit this to use afrimapr.
 
-```{r}
+```{r, message=FALSE, results=FALSE}
 healthfac <- st_read("./data/healthfacexample.shp")
 ```
 
@@ -212,7 +215,8 @@ writeRaster(leastcost_motor,
 ```
 Now create some plots of the data.
 
-```{r}
+```{r, warning=FALSE}
+## warning for removing NA pixels is masked
 lcm_df <- as.data.frame(leastcost_motor, xy = TRUE)
 lcm_df$mins <- lcm_df$layer/60
 
