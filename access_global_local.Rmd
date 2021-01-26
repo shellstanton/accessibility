@@ -1,7 +1,7 @@
 ---
 title: "Accessibility - global vs local"
 author: "John Archer"
-date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+date: ""
 output: 
   html_document:
     keep_md: true
@@ -26,7 +26,6 @@ if(length(new.packages)) install.packages(new.packages)
 
 lapply(list.of.packages, library, character.only = TRUE)
 ```
-
 
 
 ### Overview
@@ -55,12 +54,14 @@ library(rgee)
 
 ```
 
+
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once, but I keep having issues and have to start from scratch. 
 ```{r, eval=F}
 
 ee_install()
 
 ```
+
 
 Once completed it should say 'Well done! rgee was successfully set up in your system.' and will then prompt you to restart your system. It also suggests running ee_check however there may currently be an issue with this function so I suggest you don't run it.
 Then, initialise GEE. This will check whether you have everything set up to use GEE via R. If you don't additional steps will be described.
@@ -74,6 +75,7 @@ Note that you need to link to a Google account that has been given GEE access to
 ee_Initialize(drive = TRUE)
 
 ```
+
 
 Now we can use R to run code on Google Earth Engine. Note that lots of examples of translating GEE syntax to be used in rgee can be found here url{https://csaybar.github.io/rgee-examples/}.
 
@@ -91,6 +93,7 @@ bbymax <- -10.73
 
 ```
 
+
 Then make this into a polygon by using xy combinations for each corner of the area of interest.
 ```{r, eval=F}
 
@@ -98,12 +101,14 @@ aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax), c(bbxmax, bbymax), c(b
 
 ```
 
+
 Read in the Landsat 8 Tier 1 dataset
 ```{r, eval=F}
 
 ls8 <- ee$ImageCollection("LANDSAT/LC08/C01/T1_RT_TOA")
 
 ```
+
 
 Filter the LS8 collection by area & then by collection date
 ```{r, eval=F}
@@ -113,6 +118,7 @@ spatialFiltered <- ls8$filterBounds(aoi)
 temporalFiltered <- spatialFiltered$filterDate('2018-06-01', '2018-09-30')
 
 ```
+
 
 Create a cloud mask, apply the mask and calculate NDVI for the unmasked pixels
 ```{r, eval=F}
@@ -136,6 +142,7 @@ cloudlessNDVI = temporalFiltered$map(ndvilowcloud)
 
 ```
 
+
 Calculate the median NDVI per pixel and clip to the area of interest
 ```{r, eval=F}
 
@@ -144,6 +151,7 @@ medianimage <- cloudlessNDVI$median()$select('NDVI')
 medNDVIaoi <- medianimage$clip(aoi)
 
 ```
+
 
 View output
 ```{r, eval=F}
@@ -158,8 +166,8 @@ Map$addLayer(
 
 ```
 
-These data are all stored as an image within GEE. We can convert this image to a raster and download it using Google drive (drive) or Google Cloud Storage (gcs). More information on this can be obtained here url{https://r-spatial.github.io/rgee/reference/ee_as_raster.html} 
 
+These data are all stored as an image within GEE. We can convert this image to a raster and download it using Google drive (drive) or Google Cloud Storage (gcs). More information on this can be obtained here url{https://r-spatial.github.io/rgee/reference/ee_as_raster.html} 
 ```{r, eval=F}
 
 med_ndvi <- ee_as_raster(
@@ -171,8 +179,8 @@ med_ndvi <- ee_as_raster(
 
 ```
 
-The TIFF file is stored in a temporary folder, which we can then write to our data folder. I'll write the code to save this as NDVIgee.tif for now rather than overwrite the NDVIexample.tif that is currently there (although both should be the same). The 'eval' parameter is still set to FALSE.
 
+The TIFF file is stored in a temporary folder, which we can then write to our data folder. I'll write the code to save this as NDVIgee.tif for now rather than overwrite the NDVIexample.tif that is currently there (although both should be the same). The 'eval' parameter is still set to FALSE.
 ```{r, eval=F}
 
 writeRaster(med_ndvi,
@@ -181,12 +189,12 @@ writeRaster(med_ndvi,
 
 ```
 
+
 ### OpenStreetMap data
 To detail travel speeds within our area of interest, we are utilising an open source road network which is publicly compiled and hosted on:
 www.openstreetmap.org. 
 
 We can directly download OSM road data for our aoi within R. The bounding box is in the format c(xmin, ymin, xmax, ymax), using the limits defined earlier in the script.
-
 ```{r osmdownload}
 
 ## define bounding box
@@ -235,6 +243,7 @@ ndvi_assigned <- reclassify(ndvi_assigned, ndviwalk_mat)
 
 ```
 
+
 #### Roads by motor vehicle
 Again, need to document how these speeds are determined and how they may vary by season.
 We are currently using national speed limits as a maximum for primary and major roads.
@@ -259,6 +268,7 @@ osm_road_raster <- fasterize(roads.poly, ndvi_assigned, "time_secs", fun = 'min'
 
 ```
 
+
 #### Merge NDVI and road rasters together
 The next step is to merge data for on-road and off-road trave to create one cohesive friction surface.
 In areas where "road" and "off-road" cells overlap, the road values will be retained as these will be associated with the lowest cost (quickest speed).
@@ -274,6 +284,7 @@ writeRaster(friction_surface_motor,
             format = "GTiff", overwrite=TRUE)
 ```
 
+
 ### Calculate shortest paths
 First, add in health facility locations. Currently I'm reading in the facilities around Vwaza that have rHAT diagnostics, but will edit this to use afrimapr.
 
@@ -281,11 +292,8 @@ First, add in health facility locations. Currently I'm reading in the facilities
 
 healthfac <- st_read("./data/healthfacexample.shp")
 
-<<<<<<< Updated upstream
-=======
 ```
 
->>>>>>> Stashed changes
 ```{r}
 
 # First calculate the transition matrix
@@ -300,6 +308,7 @@ writeRaster(leastcost_motor,
             format = "GTiff", overwrite=TRUE)
 
 ```
+
 
 Now create some plots of the data.
 ```{r, warning=FALSE}
@@ -321,29 +330,23 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
 
 
 
-
-
-
-
-
-
-
-
 ### MRes_mini_project
 
 ```{r link_github, include=FALSE}
 
+##### Ignore chunk; switched to using GitHub client. 
+
 ## Use 'usethis' package to link GitHub account details
 # install.packages("usethis")
-
-library(usethis)
-
-use_git_config(user.name = "John Archer", user.email = "johnrobertarcher@gmail.com")
+# library(usethis)
+# use_git_config(user.name = "John Archer", user.email = "johnrobertarcher@gmail.com")
 
 ```
 
 
 ```{r switch_branch, include=FALSE}
+
+##### Ignore chunk; switched to using GitHub client. 
 
 ## Check current branch 
 # Go to Terminal
