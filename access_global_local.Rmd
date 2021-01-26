@@ -231,6 +231,8 @@ First, add in health facility locations. Currently I'm reading in the facilities
 healthfac <- st_read("./data/healthfacexample.shp")
 ```
 
+Here is some code to save and push.
+
 ```{r}
 # First calculate the transition matrix
 # Check the transitionFunction
