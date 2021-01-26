@@ -1,7 +1,7 @@
 ---
 title: "Accessibility - global vs local"
 author: "John Archer"
-date: ""
+date: "Jan - March 2021"
 output: 
   html_document:
     keep_md: true
@@ -56,6 +56,7 @@ library(rgee)
 
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once, but I keep having issues and have to start from scratch. 
+
 ```{r, eval=F}
 
 ee_install()
@@ -95,6 +96,7 @@ bbymax <- -10.73
 
 
 Then make this into a polygon by using xy combinations for each corner of the area of interest.
+
 ```{r, eval=F}
 
 aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax), c(bbxmax, bbymax), c(bbxmax, bbymin), c(bbxmin, bbymin)))
@@ -103,6 +105,7 @@ aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax), c(bbxmax, bbymax), c(b
 
 
 Read in the Landsat 8 Tier 1 dataset
+
 ```{r, eval=F}
 
 ls8 <- ee$ImageCollection("LANDSAT/LC08/C01/T1_RT_TOA")
@@ -111,6 +114,7 @@ ls8 <- ee$ImageCollection("LANDSAT/LC08/C01/T1_RT_TOA")
 
 
 Filter the LS8 collection by area & then by collection date
+
 ```{r, eval=F}
 
 spatialFiltered <- ls8$filterBounds(aoi)
@@ -121,6 +125,7 @@ temporalFiltered <- spatialFiltered$filterDate('2018-06-01', '2018-09-30')
 
 
 Create a cloud mask, apply the mask and calculate NDVI for the unmasked pixels
+
 ```{r, eval=F}
 
 ndvilowcloud <- function(image) {
@@ -144,6 +149,7 @@ cloudlessNDVI = temporalFiltered$map(ndvilowcloud)
 
 
 Calculate the median NDVI per pixel and clip to the area of interest
+
 ```{r, eval=F}
 
 medianimage <- cloudlessNDVI$median()$select('NDVI')
@@ -154,6 +160,7 @@ medNDVIaoi <- medianimage$clip(aoi)
 
 
 View output
+
 ```{r, eval=F}
 
 Map$centerObject(aoi)
@@ -168,6 +175,7 @@ Map$addLayer(
 
 
 These data are all stored as an image within GEE. We can convert this image to a raster and download it using Google drive (drive) or Google Cloud Storage (gcs). More information on this can be obtained here url{https://r-spatial.github.io/rgee/reference/ee_as_raster.html} 
+
 ```{r, eval=F}
 
 med_ndvi <- ee_as_raster(
@@ -181,6 +189,7 @@ med_ndvi <- ee_as_raster(
 
 
 The TIFF file is stored in a temporary folder, which we can then write to our data folder. I'll write the code to save this as NDVIgee.tif for now rather than overwrite the NDVIexample.tif that is currently there (although both should be the same). The 'eval' parameter is still set to FALSE.
+
 ```{r, eval=F}
 
 writeRaster(med_ndvi,
@@ -195,6 +204,7 @@ To detail travel speeds within our area of interest, we are utilising an open so
 www.openstreetmap.org. 
 
 We can directly download OSM road data for our aoi within R. The bounding box is in the format c(xmin, ymin, xmax, ymax), using the limits defined earlier in the script.
+
 ```{r osmdownload}
 
 ## define bounding box
@@ -208,6 +218,7 @@ q <- opq(bbox = aoi_bbox) %>%
 ggplot(q$osm_lines)+geom_sf()
 
 ```
+
 
 ### Assign speeds
 We now want to assign speeds to the NDVI pixels plus the roads
@@ -311,6 +322,7 @@ writeRaster(leastcost_motor,
 
 
 Now create some plots of the data.
+
 ```{r, warning=FALSE}
 
 ## warning for removing NA pixels is masked
