@@ -25,6 +25,7 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 
 lapply(list.of.packages, library, character.only = TRUE)
+
 ```
 
 
@@ -314,6 +315,7 @@ trans_motor <- transition(friction_surface_motor, transitionFunction = function(
 # Then calculate the cumulative cost
 leastcost_motor <-  accCost(trans_motor, as_Spatial(healthfac))
 
+
 writeRaster(leastcost_motor,
             "./outputs/leastcost_raster_motor",
             format = "GTiff", overwrite=TRUE)
@@ -352,14 +354,7 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
 # install.packages("usethis")
 # library(usethis)
 # use_git_config(user.name = "John Archer", user.email = "johnrobertarcher@gmail.com")
-
-```
-
-
-```{r switch_branch, include=FALSE}
-
-##### Ignore chunk; switched to using GitHub client. 
-
+ 
 ## Check current branch 
 # Go to Terminal
 # Use code 'git branch' to check current branch
@@ -381,8 +376,235 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
 ```
 
 
+### Task 7
+
+Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
+*Landsat data is at 30m x 30m resolution, whereas some of the dataset's Michelle's linked to are at a larger spatial resolution. For some of the extraction functions, the rasters will need to be at the same spatial resolution. Some resampling would be useful here.
+*You will need to check projections of the different spatial datasets to ensure they align (extract and crop functions won't work if the data is in different spatial resolutions).
+*You'll have to determine some sensible thresholds to quantify the population by (i.e. within 30 minutes, 1hr, etc... travel of a facility).
+*You may want to further categorise the population as "at-risk" or "not at-risk" of infection. I think we should get the ball rolling with just one population surface for the moment and this is something we can code in later down the line.
 
 
+# Isolate time-boundary data, create shapefiles and submit to worldpop
+
+```{r isolate_polygons, include=FALSE}
+
+### Subset data.frame by time -> create rasterlayer -> convert raster to polygon ?
+
+# Load dplyr
+library(dplyr)
+
+# View dataset
+View(lcm_df)
+
+# Subset by < 30 mins 
+zero_thirty <- subset(lcm_df, mins < 30)
+
+# Check
+View(zero_thirty)
+
+# Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
+zero_thirty$layer <- NULL
+
+# Check with plot
+ggplot()+geom_raster(data=zero_thirty, aes(x = x, y = y, fill = cut(mins, c(0,30,max(mins)))))+
+    scale_fill_brewer(palette = "YlGnBu")+
+    geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
+    geom_sf(data=healthfac, size=2, colour="red")+
+    guides(fill=guide_legend(title="Time (mins)"))
+
+# Create raster
+zero_thirty_raster <- rasterFromXYZ(zero_thirty)
+
+# Check
+View(zero_thirty_raster)
+zero_thirty_raster
+plot(zero_thirty_raster)
+
+
+test <- rasterToPolygons(zero_thirty_raster, dissolve = TRUE)
+
+
+# Check
+plot(test)
+
+test
+# Is a SpatialPolygonsDataFrame (spdf)
+
+# Save as shapefile
+writeOGR(test, dsn = "test", layer = "test", driver = "ESRI Shapefile")
+
+
+## Install and use wpCPR : An R package to submit a custom polygon request to the WorldPop API
+# install.packages("devtools")
+#devtools::install_github("wpgp/wpCPR")
+
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./test/test.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+
+
+
+
+
+# Convert spdf to an sf object
+test_sf <- st_as_sf(test)
+
+plot(test_sf)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Check CRS
+st_crs(zero_thirty_raster)
+# CRS = NA
+
+# Set CRS to WGS84
+zero_thirty_raster <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# Check CRS
+st_crs(zero_thirty_raster)
+# WGS84
+
+
+
+
+
+
+
+
+# Currently 'rasterbrick'. Create matrix to make 'rasterlayer'
+zero_thirty_matrix <- as(zero_thirty, "matrix")
+
+# Check
+View(zero_thirty_matrix)
+zero_thirty_matrix
+
+# Check CRS
+st_crs(zero_thirty_matrix)
+# CRS = NA
+
+# Set CRS to WGS84
+zero_thirty_matrix <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# Check CRS
+st_crs(zero_thirty_matrix)
+# WGS84
+
+
+
+
+
+
+# Check
+View(zero_thirty_raster)
+zero_thirty_raster
+
+# Check CRS
+st_crs(zero_thirty_raster)
+# CRS = NA
+
+# Set CRS to WGS84
+zero_thirty_raster <- crs("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+# Check CRS
+st_crs(zero_thirty_raster)
+# WGS84
+
+# Convert raster to polygon
+zero_thirty_polygon <- rasterToPolygons(zero_thirty_raster)
+
+```
+
+
+
+```{r isolate_polygons, include=FALSE}
+
+### Subset data.frame by time -> create .csv -> convert .csv to polygon ?
+
+# Load dplyr
+library(dplyr)
+
+# View dataset
+View(lcm_df)
+
+# Subset by < 30 mins 
+zero_thirty <- subset(lcm_df, mins < 30)
+
+# Check
+View(zero_thirty)
+
+# Check with plot
+ggplot()+geom_raster(data=zero_thirty, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
+    scale_fill_brewer(palette = "YlGnBu")+
+    geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
+    geom_sf(data=healthfac, size=2, colour="red")+
+    guides(fill=guide_legend(title="Time (mins)"))
+
+# Create .csv
+write.csv(zero_thirty, "./outputs/zero_thirty.csv")
+
+# Read in .csv
+zero_thirty_csv <- read.csv("./outputs/zero_thirty.csv")
+
+# Check CRS
+st_crs(zero_thirty_csv)
+# CRS = NA.
+
+# Convert data.frame to spdf
+zero_thirty_spdf <-SpatialPointsDataFrame(zero_thirty_csv, zero_thirty_csv)
+
+# Assign CRS (WGS84)
+zero_thirty_spdf <- crs("+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0" )
+
+# Check CRS
+st_crs(zero_thirty_spdf)
+# CRS = NA.
+
+```
+
+
+```{r isolate_polygons, include=FALSE}
+
+### Extract from leastcost_motor ?
+
+
+lcm_df
+
+
+plot(leastcost_motor)
+
+test <- rasterToPolygons(leastcost_motor, 
+                         fun = function(x){x < 1000},
+                         dissolve = TRUE)
+
+test
+plot(test)
+
+
+```
 
 
 
