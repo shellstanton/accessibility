@@ -454,6 +454,7 @@ thirty_min_polygon
 # Is a SpatialPolygonsDataFrame (spdf)
 # Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
 plot(thirty_min_polygon)
+# A solid shape, whereas we need boundary data
 
 # Aggregate 'thirty_min_polygon' to give boundary 
 thirty_min_polygon_agg <- aggregate(thirty_min_polygon)
@@ -487,6 +488,9 @@ wpCPRPopulation (year=2020,
 ## Error: Your application is sending too many requests per day. (Limit is 1000 requests per day. Please contact WorldPop for an API Key to lift a limit)
 
 ```
+
+
+
 
 
 ### Download and add population data rasters ???
@@ -581,18 +585,21 @@ writeRaster(leastcost_motor_pop,
 
 
 # Now we wish to calculate the population within 30 minutes (etc) of a healthcare facility
-# Compute a 30 minute buffer zone around the health facilities and intersect that with population density 
+# Compute a 30 minute buffer zone around the health facilities and intersect that with population density ???
 
 
 
-## Create raster from data.frame ???
 
+
+
+
+
+
+## Create raster from subsetted data.frame ???
 leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
 View(leastcost_motor_pop_df)
 
 # Subset data.frame by <30 minutes
-View(leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 30, ])
-
 thirty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 30, ]
 
 # Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
@@ -624,15 +631,22 @@ thirty_min_polygoy_agg <- aggregate(thirty_min_polygon)
 plot(thirty_min_polygoy_agg)
 
 
+# Test mask?
+test_mask <- mask(pop_data, thirty_min_polygoy_agg)
+plot(test_mask)
 
-# Extract population number from 'thirty_min_polygoy_agg'
-thirty_min_population <- extract(leastcost_motor, thirty_min_polygoy_agg, df = TRUE)
+
+
+
+# Extract population data from 'pop_data' by using 'thirty_min_polygoy_agg' ???
+thirty_min_population <- extract(pop_data, thirty_min_polygoy_agg)
 View(thirty_min_population)
-
-
-
+sum(thirty_min_population$mwi_ppp_2020)
+## None work.
 
 ```
+
+
 
 
 
