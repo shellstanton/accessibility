@@ -455,15 +455,17 @@ thirty_min_polygon
 # Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
 plot(thirty_min_polygon)
 
+# Aggregate 'thirty_min_polygon' to give boundary 
+thirty_min_polygon_agg <- aggregate(thirty_min_polygon)
+# Check
+plot(thirty_min_polygon_agg)
 
-
-
-## Require polygon boundary ???
-
-
+# Cannot save as shapefile as 'thirty_min_polygon_agg' is 'SpatialPolygons' and needs to be 'SpatialPolygonsDataFrame'
+# Convert 'thirty_min_polygon_agg' to SpatialPolygonsDataFrame
+thirty_min_polygon_agg_df <- SpatialPolygonsDataFrame(thirty_min_polygon_agg, data = as.data.frame("thirty_min_polygon_agg_df"))
 
 # Save as shapefile
-writeOGR(thirty_min_polygon, dsn = "thirty_min_polygon", layer = "thirty_min_polygon", driver = "ESRI Shapefile")
+writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile")
 
 
 ## Install and use wpCPR : An R package to submit a custom polygon request to the WorldPop API
@@ -474,7 +476,7 @@ writeOGR(thirty_min_polygon, dsn = "thirty_min_polygon", layer = "thirty_min_pol
 library(wpCPR)
 
 wpCPRPopulation (year=2020,
-                 shapeFilePath = "./thirty_min_polygon/thirty_min_polygon.shp",
+                 shapeFilePath = "./thirty_min_polygon_agg_df/thirty_min_polygon_agg_df.shp",
                  outputFilePath = NULL,
                  apikey = NULL,
                  callbacktime = 5,
@@ -482,9 +484,7 @@ wpCPRPopulation (year=2020,
                  apiurl = NULL,
                  verbose = TRUE)
 
-
 ## Error: Your application is sending too many requests per day. (Limit is 1000 requests per day. Please contact WorldPop for an API Key to lift a limit)
-
 
 ```
 
@@ -580,36 +580,14 @@ writeRaster(leastcost_motor_pop,
 ```{r population_time_boundaries, include=FALSE}
 
 
-## Need to create polygons for each time-boundary?
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Now we wish to calculate the population within 30 minutes (etc) of a healthcare facility
+# Compute a 30 minute buffer zone around the health facilities and intersect that with population density 
 
 
 
 ## Create raster from data.frame ???
 
-leastcost_motor_pop_df <- as.data.frame(leastcost_motor_pop_df, xy = TRUE)
+leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
 View(leastcost_motor_pop_df)
 
 # Subset data.frame by <30 minutes
@@ -630,12 +608,7 @@ thirty_min_raster
 # No CRS assigned...
 plot(thirty_min_raster)
 
-
-
-
-
-
-# Create polygon (takes about 5-10 mins)
+# Create polygon (takes ~5 mins)
 thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
 
 # Check
@@ -643,12 +616,18 @@ thirty_min_polygon
 # Is a SpatialPolygonsDataFrame (spdf)
 # Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
 plot(thirty_min_polygon)
+# A solid shape, whereas we need boundary data
+
+# Aggregate 'thirty_min_polygon' to give boundary 
+thirty_min_polygoy_agg <- aggregate(thirty_min_polygon)
+# Check
+plot(thirty_min_polygoy_agg)
 
 
 
-
-sum(mask(leastcost_motor_pop, thirty_min_polygon, inverse=TRUE)[], na.rm=TRUE)
-
+# Extract population number from 'thirty_min_polygoy_agg'
+thirty_min_population <- extract(leastcost_motor, thirty_min_polygoy_agg, df = TRUE)
+View(thirty_min_population)
 
 
 
