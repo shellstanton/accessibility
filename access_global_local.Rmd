@@ -49,7 +49,7 @@ I keep having issues with the rgee package, so I suggest at some point we split 
 ```{r}
 
 ## install rgee from github
-remotes::install_github("r-spatial/rgee")
+# remotes::install_github("r-spatial/rgee")
 
 library(rgee)
 
@@ -60,7 +60,8 @@ This first bit is all about connecting to GEE via the rgee package. You should o
 
 ```{r, eval=F}
 
-ee_install()
+# Only need to run once
+# ee_install()
 
 ```
 
@@ -346,6 +347,8 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
 
 ### MRes_mini_project
 
+Setup and sync GitHub
+
 ```{r link_github, include=FALSE}
 
 ##### Ignore chunk; switched to using GitHub client. 
@@ -386,7 +389,7 @@ Add in population rasters, and calculate the number/proportion of the population
 *You may want to further categorise the population as "at-risk" or "not at-risk" of infection. I think we should get the ball rolling with just one population surface for the moment and this is something we can code in later down the line.
 
 
-# Isolate time-boundary data, create shapefiles and submit to worldpop ???
+### Isolate time-boundary data, create shapefiles and submit to worldpop ???
 
 ```{r isolate_polygons, include=FALSE}
 
@@ -486,7 +489,7 @@ wpCPRPopulation (year=2020,
 ```
 
 
-# Download and add population data rasters ???
+### Download and add population data rasters ???
 
 ```{r download_population_data_raster, include=FALSE}
 
@@ -502,7 +505,7 @@ library(wpgpDownloadR)
 ## Download ISO3 dataframe to obtain ISO3 info
 # 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
 ISO3_df <- wpgpListCountries()
-View(ISO3_df)
+# View(ISO3_df)
 
 # Set country of interest (move to beggining of script within initial setup phase?)
 COI <- "Malawi"
@@ -530,57 +533,127 @@ pop_data <- raster(pop_data)
 
 # Check
 pop_data
-plot(pop_data)
-
+# plot(pop_data)
 res(pop_data)
 # 0.0008333333 0.0008333333
 
-trans_motor
-res(trans_motor)
+# Check raster resampling to ('leastcost_motor')
+leastcost_motor
+res(leastcost_motor)
 # 0.0002694946 0.0002694946
-
 
 ## Need to resample to match resolution
-# resample(pop_data, trans_motor, method = "bilinear")
-# Does not work as 'trans_motor' is a TransitionLayer, whereas 'pop_data_ is a RasterLayer
+pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
 
-# So try resample 'pop_data' to an earlier raster? Such as osm_road_raster?
-osm_road_raster
-# osm_road_raster is RasterLayer
-
-res(osm_road_raster)
-# 0.0002694946 0.0002694946
-res(osm_road_raster) == res(trans_motor)
+# Check
+res(pop_data) == res(leastcost_motor)
 # True
-
-# Resample
-pop_data <- resample(pop_data, osm_road_raster, method = "bilinear")
-
-res(pop_data)
-res(pop_data) == res(osm_road_raster)
-# True
-res(pop_data) == res(trans_motor)
-# True! Resolutions now match
-
 plot(pop_data)
 
-## Has also clipped raster to match extent of 'trans_motor'
-extent(pop_data) == extent(trans_motor)
+## Has also clipped raster to match extent of 'leastcost_motor'
+extent(pop_data) == extent(leastcost_motor)
 # True!
+crs(pop_data)
+# WGS84
+crs(leastcost_motor)
+# WGS84
+
+## merge the pop_data and the leastcost_motor
+leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
+
+leastcost_motor_pop
+extent(leastcost_motor_pop) == extent(leastcost_motor)
+# True!
+crs(leastcost_motor_pop)
+# WGS84
+
+# Save raster
+writeRaster(leastcost_motor_pop,
+            "./WorldPop/pop_data",
+            format = "GTiff", overwrite=TRUE)
+
+```
+
+
+### Calculate number/proportion of population living within certain time-boundaries
+
+```{r population_time_boundaries, include=FALSE}
+
+
+## Need to create polygons for each time-boundary?
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Create raster from data.frame ???
+
+leastcost_motor_pop_df <- as.data.frame(leastcost_motor_pop_df, xy = TRUE)
+View(leastcost_motor_pop_df)
+
+# Subset data.frame by <30 minutes
+View(leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 30, ])
+
+thirty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 30, ]
+
+# Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
+thirty_min$layer <- NULL
+
+# Create raster
+thirty_min_raster <- rasterFromXYZ(thirty_min)
+
+# Check
+# View(thirty_min_raster)
+thirty_min_raster
+# RasterLayer
+# No CRS assigned...
+plot(thirty_min_raster)
+
+
+
+
+
+
+# Create polygon (takes about 5-10 mins)
+thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
+
+# Check
+thirty_min_polygon
+# Is a SpatialPolygonsDataFrame (spdf)
+# Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
+plot(thirty_min_polygon)
+
+
+
+
+sum(mask(leastcost_motor_pop, thirty_min_polygon, inverse=TRUE)[], na.rm=TRUE)
 
 
 
 
 
 ```
-
-
-
 
 
 
