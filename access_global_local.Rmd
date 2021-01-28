@@ -532,8 +532,46 @@ pop_data <- raster(pop_data)
 pop_data
 plot(pop_data)
 
-# Spatial resolution?
 res(pop_data)
+# 0.0008333333 0.0008333333
+
+trans_motor
+res(trans_motor)
+# 0.0002694946 0.0002694946
+
+
+## Need to resample to match resolution
+# resample(pop_data, trans_motor, method = "bilinear")
+# Does not work as 'trans_motor' is a TransitionLayer, whereas 'pop_data_ is a RasterLayer
+
+# So try resample 'pop_data' to an earlier raster? Such as osm_road_raster?
+osm_road_raster
+# osm_road_raster is RasterLayer
+
+res(osm_road_raster)
+# 0.0002694946 0.0002694946
+res(osm_road_raster) == res(trans_motor)
+# True
+
+# Resample
+pop_data <- resample(pop_data, osm_road_raster, method = "bilinear")
+
+res(pop_data)
+res(pop_data) == res(osm_road_raster)
+# True
+res(pop_data) == res(trans_motor)
+# True! Resolutions now match
+
+plot(pop_data)
+
+## Has also clipped raster to match extent of 'trans_motor'
+extent(pop_data) == extent(trans_motor)
+# True!
+
+
+
+
+
 
 
 
