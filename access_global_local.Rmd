@@ -347,38 +347,6 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
 
 ### MRes_mini_project
 
-Setup and sync GitHub
-
-```{r link_github, include=FALSE}
-
-##### Ignore chunk; switched to using GitHub client. 
-
-## Use 'usethis' package to link GitHub account details
-# install.packages("usethis")
-# library(usethis)
-# use_git_config(user.name = "John Archer", user.email = "johnrobertarcher@gmail.com")
- 
-## Check current branch 
-# Go to Terminal
-# Use code 'git branch' to check current branch
-# Current branch = 'main'
-
-## Create new branch
-# Go to Terminal
-# Use code 'git branch john_branch'
-
-## Switch to new branch (named 'john_branch')
-# Go to Terminal
-# Use code 'git checkout john_branch'
-
-## Check current branch 
-# Go to Terminal
-# Use code 'git branch' to check current branch
-# Current branch = 'john_branch'
-
-```
-
-
 ### Task 7
 
 Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
@@ -389,11 +357,10 @@ Add in population rasters, and calculate the number/proportion of the population
 *You may want to further categorise the population as "at-risk" or "not at-risk" of infection. I think we should get the ball rolling with just one population surface for the moment and this is something we can code in later down the line.
 
 
-### Isolate time-boundary data, create shapefiles and submit to worldpop ???
+### Extract time-boundary polygons from 'leastcost_motor' ???
+```{r isolate_time_boundary_polygons, include=FALSE}
 
-```{r isolate_polygons, include=FALSE}
-
-### Extract from leastcost_motor ?
+### Extract from leastcost_motor ???
 
 lcm_df
 
@@ -410,9 +377,8 @@ plot(test)
 ```
 
 
-```{r isolate_polygons, include=FALSE}
-
-### Subset data.frame by time -> create rasterlayer -> convert raster to polygon ?
+### Subset time-boundary data, create polygon(s) and submit to WorldPop ???
+```{r subset_dataframe_and_submit_polygon_to_WorldPop, include=FALSE}
 
 # Load dplyr
 library(dplyr)
@@ -458,6 +424,7 @@ plot(thirty_min_polygon)
 
 # Aggregate 'thirty_min_polygon' to give boundary 
 thirty_min_polygon_agg <- aggregate(thirty_min_polygon)
+
 # Check
 plot(thirty_min_polygon_agg)
 
@@ -485,16 +452,12 @@ wpCPRPopulation (year=2020,
                  apiurl = NULL,
                  verbose = TRUE)
 
-## Error: Your application is sending too many requests per day. (Limit is 1000 requests per day. Please contact WorldPop for an API Key to lift a limit)
+## Error: Request failed :: Unsupported Geometry:  This operation supports only Polygons.
 
 ```
 
 
-
-
-
-### Download and add population data rasters ???
-
+### Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) ???
 ```{r download_population_data_raster, include=FALSE}
 
 ### Add in raster population dataset layers ???
@@ -578,24 +541,16 @@ writeRaster(leastcost_motor_pop,
 
 ```
 
-
-### Calculate number/proportion of population living within certain time-boundaries
-
-```{r population_time_boundaries, include=FALSE}
+### Extract from population rasters using polygon(s) (30 min)
+```{r population_30_min, include=FALSE}
 
 
-# Now we wish to calculate the population within 30 minutes (etc) of a healthcare facility
-# Compute a 30 minute buffer zone around the health facilities and intersect that with population density ???
-
-
-
-
-
-
-
+## Compute a 30 minute buffer zone around the health facilities and intersect that with population density ???
 
 
 ## Create raster from subsetted data.frame ???
+
+# Create data.frame from 'lcm_df'
 leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
 View(leastcost_motor_pop_df)
 
@@ -623,33 +578,75 @@ thirty_min_polygon
 # Is a SpatialPolygonsDataFrame (spdf)
 # Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
 plot(thirty_min_polygon)
-# A solid shape, whereas we need boundary data
+# A solid shape, whereas we need boundary vector
 
 # Aggregate 'thirty_min_polygon' to give boundary 
 thirty_min_polygoy_agg <- aggregate(thirty_min_polygon)
 # Check
 plot(thirty_min_polygoy_agg)
 
+# Extract and sum population data from 'pop_data' by using 'thirty_min_polygoy_agg'
+thirty_min_pop <- extract(pop_data, thirty_min_polygoy_agg, fun = sum, na.rm = TRUE)
+thirty_min_pop
+# 281609.2
+
+```
+
+### Extract from population rasters using polygon(s) (60 min)
+```{r population_60_min, include=FALSE}
+
+# Create data.frame from 'lcm_df'
+leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
+View(leastcost_motor_pop_df)
+
+# Subset data.frame by <60 minutes
+sixty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 60, ]
+
+# Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
+sixty_min$layer <- NULL
+
+View(sixty_min)
+
+# Create raster
+sixty_min_raster <- rasterFromXYZ(sixty_min)
+
+# Check
+# View(sixty_min_raster)
+sixty_min_raster
+# RasterLayer
+# No CRS assigned...
+plot(sixty_min_raster)
+
+# Create polygon (takes ~10 mins)
+sixty_min_polygon <- rasterToPolygons(sixty_min_raster, dissolve = TRUE)
+
+# Check
+sixty_min_polygon
+# Is a SpatialPolygonsDataFrame (spdf)
+# Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
+plot(sixty_min_polygon)
+# A solid shape, whereas we need boundary vector
+
+# Aggregate 'sixty_min_polygon' to give boundary 
+sixty_min_polygoy_agg <- aggregate(sixty_min_polygon)
+# Check
+plot(sixty_min_polygoy_agg)
+
+# Extract and sum population data from 'pop_data' by using 'sixty_min_polygoy_agg'
+sixty_min_pop <- extract(pop_data, sixty_min_polygoy_agg, fun = sum, na.rm = TRUE)
+sixty_min_pop
+# 799607.3
+
+```
+
+
+### Test mask, ignore.
+```{r test_mask, include=FALSE}
 
 # Test mask?
 test_mask <- mask(pop_data, thirty_min_polygoy_agg)
 plot(test_mask)
 
-
-
-
-# Extract population data from 'pop_data' by using 'thirty_min_polygoy_agg' ???
-thirty_min_population <- extract(pop_data, thirty_min_polygoy_agg)
-View(thirty_min_population)
-sum(thirty_min_population$mwi_ppp_2020)
-## None work.
-
 ```
-
-
-
-
-
-
 
 
