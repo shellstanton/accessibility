@@ -8,6 +8,26 @@ output:
 ---
 
 
+### MRes mini project: Task_8
+
+Restructure code so it contains an initial section for user inputs relating to:
+* area of interest
+* road travel speeds
+* NDVI parameters i.e. period of time over which to summarise NDVI plus walking speeds assigned to NDVI intervals
+JL:
+* I envisage that most users won't know the coordinates for the bounding box of their area of interest, but may have a shapefile, or know the name of a district.
+* Would it be useful to allow the option of a data-upload at the start of the script? We can grab the extent from a spatial object. 
+
+```{r setup_JRA, include=FALSE}
+
+
+
+```
+
+
+
+
+
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
@@ -196,7 +216,8 @@ The TIFF file is stored in a temporary folder, which we can then write to our da
 
 writeRaster(med_ndvi,
             "./data/NDVIgee",
-            format = "GTiff", overwrite=TRUE)
+            format = "GTiff", 
+            overwrite=TRUE)
 
 ```
 
@@ -345,9 +366,7 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
 
 
 
-### MRes_mini_project
-
-### Task 7
+### MRes_mini_project: Task_7
 
 Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
 
@@ -357,14 +376,13 @@ Add in population rasters, and calculate the number/proportion of the population
 *You may want to further categorise the population as "at-risk" or "not at-risk" of infection. I think we should get the ball rolling with just one population surface for the moment and this is something we can code in later down the line.
 
 
-### Extract time-boundary polygons from 'leastcost_motor' ???
+### Option_1: Extract time-boundary polygons from 'leastcost_motor' ???
 ```{r isolate_time_boundary_polygons, include=FALSE}
 
-### Extract from leastcost_motor ???
+### Extract points (< 30 mins from health facilities) from leastcost_motor then create polygon ???
 
-lcm_df
-
-plot(leastcost_motor)
+# WIP
+# extract(leastcost_motor, XXX?,)
 
 test <- rasterToPolygons(leastcost_motor, 
                          fun = function(x){x < 1000},
@@ -373,11 +391,10 @@ test <- rasterToPolygons(leastcost_motor,
 test
 plot(test)
 
-
 ```
 
 
-### Subset time-boundary data, create polygon(s) and submit to WorldPop ???
+### Option_2: Subset time-boundary data from data.frame, create polygon(s) and submit to WorldPop ???
 ```{r subset_dataframe_and_submit_polygon_to_WorldPop, include=FALSE}
 
 # Load dplyr
@@ -387,7 +404,7 @@ library(dplyr)
 View(lcm_df)
 
 # Subset by < 30 mins 
-thirty_min <- subset(lcm_df, mins < 30)
+thirty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 30, ]
 
 # Check
 View(thirty_min)
@@ -426,15 +443,31 @@ plot(thirty_min_polygon)
 thirty_min_polygon_agg <- aggregate(thirty_min_polygon)
 
 # Check
-plot(thirty_min_polygon_agg)
+# plot(thirty_min_polygon_agg)
+
+thirty_min_polygon_agg
+# Class: SpatialPolygons 
+
+
+
+
+
+
+# Save as shapefile
+writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile", overwrite=TRUE)
+
+st_write(thirty_min_polygon_agg, dsn = "thirty_min_polygon_agg", layer = "thirty_min_polygon_agg")
+
+
+
+
+
+
 
 # Cannot save as shapefile as 'thirty_min_polygon_agg' is 'SpatialPolygons' and needs to be 'SpatialPolygonsDataFrame'
 # Convert 'thirty_min_polygon_agg' to SpatialPolygonsDataFrame
 thirty_min_polygon_agg_df <- SpatialPolygonsDataFrame(thirty_min_polygon_agg, data = as.data.frame("thirty_min_polygon_agg_df"))
-
-# Save as shapefile
-writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile")
-
+## But this saves as SpatialPolygonsDataFrame? Not polygon?
 
 ## Install and use wpCPR : An R package to submit a custom polygon request to the WorldPop API
 # install.packages("devtools")
@@ -457,7 +490,7 @@ wpCPRPopulation (year=2020,
 ```
 
 
-### Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) ???
+### Option_3: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) ???
 ```{r download_population_data_raster, include=FALSE}
 
 ### Add in raster population dataset layers ???
@@ -474,7 +507,7 @@ library(wpgpDownloadR)
 ISO3_df <- wpgpListCountries()
 # View(ISO3_df)
 
-# Set country of interest (move to beggining of script within initial setup phase?)
+# Set country of interest (move to beginning of script within initial setup phase?)
 COI <- "Malawi"
 
 # Ascertain ISO3 of Malawi
@@ -515,17 +548,17 @@ pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
 # Check
 res(pop_data) == res(leastcost_motor)
 # True
-plot(pop_data)
+# plot(pop_data)
 
 ## Has also clipped raster to match extent of 'leastcost_motor'
 extent(pop_data) == extent(leastcost_motor)
-# True!
+# True
 crs(pop_data)
 # WGS84
 crs(leastcost_motor)
 # WGS84
 
-## merge the pop_data and the leastcost_motor
+## merge the pop_data and the leastcost_motor ???
 leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
 
 leastcost_motor_pop
@@ -537,7 +570,8 @@ crs(leastcost_motor_pop)
 # Save raster
 writeRaster(leastcost_motor_pop,
             "./WorldPop/pop_data",
-            format = "GTiff", overwrite=TRUE)
+            format = "GTiff", 
+            overwrite=TRUE)
 
 ```
 
@@ -548,7 +582,6 @@ writeRaster(leastcost_motor_pop,
 ## Compute a 30 minute buffer zone around the health facilities and intersect that with population density ???
 
 
-## Create raster from subsetted data.frame ???
 
 # Create data.frame from 'lcm_df'
 leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
