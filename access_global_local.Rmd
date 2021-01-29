@@ -338,7 +338,6 @@ trans_motor <- transition(friction_surface_motor, transitionFunction = function(
 # Then calculate the cumulative cost
 leastcost_motor <-  accCost(trans_motor, as_Spatial(healthfac))
 
-
 writeRaster(leastcost_motor,
             "./outputs/leastcost_raster_motor",
             format = "GTiff", overwrite=TRUE)
@@ -671,9 +670,6 @@ View(lcm_df)
 lcm_df$layer = NULL
 View(lcm_df)
 
-# In a 3-column matrix the first two columns are "from" - "to" for the input values, and the third column "becomes" has the new value for that range. (You can also supply a vector that can be coerced into a n*3 matrix (with byrow=TRUE)).
-
-
 ##########
 rcl_matrix <- data.frame(lower_limit = c(0, 30, 60, 90, 120, 150, 180, 240),
                          upper_limit = c(30, 60, 90, 120, 150, 180, 240, 300),
@@ -704,13 +700,16 @@ rcl_matrix_3 <- c(0, 30, 1,
 rcl_matrix_3 <- matrix(rcl_matrix_3, ncol=3, byrow=TRUE)
 View(rcl_matrix_3)
 
+# Create new raster of leastcost_motor time boundaries 
 
-lcm_rcl <- reclassify(leastcost_motor, rcl_matrix_3, include.lowest=TRUE)
-plot(lcm_rcl)
+# Reclassify 'XXX' with 'rcl_matrix' 
+lcm_pop_data_rcl <- reclassify(lcm_pop_data, rcl_matrix_3, include.lowest=TRUE)
+lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
+View(lcm_rcl_pop_data_df)
 
 
 
-##########
+
 lcm_rcl_zone <- zonal(pop_data, lcm_rcl, fun = sum)
 
 lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
@@ -718,16 +717,6 @@ View(lcm_rcl_zone_df)
 
 
 
-
-
-
-
-
-
-
-
-lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
-View(lcm_rcl_zone_df)
 
 
 
