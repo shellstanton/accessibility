@@ -1,0 +1,15 @@
+---
+title: "access_stages"
+author: "John Archer"
+date: "29/01/2021"
+output: pdf_document
+---
+
+### MRes mini project: Task_9:
+
+Create a document that lists each of the stages involved in generating and summarising the accessibility surface. 
+Put in a table with headings 'Task', 'R' and 'GEE'. For each task note whether it's possible in R and/or GEE and make notes of packages, functions we're using to undertake the task.
+
+### List tasks:
+* Setup
+* Install packages

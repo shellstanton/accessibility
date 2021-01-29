@@ -265,6 +265,7 @@ ndviwalk_mps <- ndviwalk_kph/3.6
 
 # Convert to crossing time in seconds, assuming travel along hypotenuse and pixel size is 30m
 ndviwalk_secs <- 42.43/ndviwalk_mps
+
   
 # Convert km/h to m/s
 ndviwalk_vec <- c(-1, 0.35, ndviwalk_secs[1], 0.35, 0.6, ndviwalk_secs[2], 0.6, 0.7, ndviwalk_secs[3], 0.7, 1, ndviwalk_secs[4])
@@ -448,21 +449,10 @@ thirty_min_polygon_agg <- aggregate(thirty_min_polygon)
 thirty_min_polygon_agg
 # Class: SpatialPolygons 
 
-
-
-
-
-
 # Save as shapefile
 writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile", overwrite=TRUE)
 
 st_write(thirty_min_polygon_agg, dsn = "thirty_min_polygon_agg", layer = "thirty_min_polygon_agg")
-
-
-
-
-
-
 
 # Cannot save as shapefile as 'thirty_min_polygon_agg' is 'SpatialPolygons' and needs to be 'SpatialPolygonsDataFrame'
 # Convert 'thirty_min_polygon_agg' to SpatialPolygonsDataFrame
@@ -490,7 +480,7 @@ wpCPRPopulation (year=2020,
 ```
 
 
-### Option_3: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) ???
+### Option_3a: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) (Working). 
 ```{r download_population_data_raster, include=FALSE}
 
 ### Add in raster population dataset layers ???
@@ -575,7 +565,7 @@ writeRaster(leastcost_motor_pop,
 
 ```
 
-### Extract from population rasters using polygon(s) (30 min)
+### Option_3b: Extract from population rasters using polygon(s) (30 min) (Working)
 ```{r population_30_min, include=FALSE}
 
 
@@ -625,7 +615,7 @@ thirty_min_pop
 
 ```
 
-### Extract from population rasters using polygon(s) (60 min)
+### Option_3b: Extract from population rasters using polygon(s) (60 min) (Working)
 ```{r population_60_min, include=FALSE}
 
 # Create data.frame from 'lcm_df'
@@ -671,6 +661,89 @@ sixty_min_pop
 # 799607.3
 
 ```
+
+### Option_3c: Extract from population rasters using reclasified rasters (rather than polygons) ???
+```{r population_60_min, include=FALSE}
+
+## Reclassify 'leastcost_motor' and extract from 'pop_data'
+
+View(lcm_df)
+lcm_df$layer = NULL
+View(lcm_df)
+
+# In a 3-column matrix the first two columns are "from" - "to" for the input values, and the third column "becomes" has the new value for that range. (You can also supply a vector that can be coerced into a n*3 matrix (with byrow=TRUE)).
+
+
+##########
+rcl_matrix <- data.frame(lower_limit = c(0, 30, 60, 90, 120, 150, 180, 240),
+                         upper_limit = c(30, 60, 90, 120, 150, 180, 240, 300),
+                         reclassification = c(1, 2, 3, 4, 5, 6, 7, 8)
+                         )
+View(rcl_matrix)
+
+##########
+rcl_matrix_2 <- data.frame(time_boundary = c (0, 30, 60, 90, 120, 150, 180, 240, 300),
+                           reclassification = c(1, 2, 3, 4, 5, 6, 7, 8, 9)
+                           )
+
+View(rcl_matrix_2)
+
+##########
+rcl_matrix_3 <- c(0, 30, 1,
+                  30, 60, 2,
+                  60, 90, 3,
+                  90, 120, 4,
+                  120, 150, 5,
+                  150, 180, 6,
+                  180, 210, 7,
+                  210, 240, 8,
+                  240, 270, 9,
+                  270, 300, 10
+                  )
+
+rcl_matrix_3 <- matrix(rcl_matrix_3, ncol=3, byrow=TRUE)
+View(rcl_matrix_3)
+
+
+lcm_rcl <- reclassify(leastcost_motor, rcl_matrix_3, include.lowest=TRUE)
+plot(lcm_rcl)
+
+
+
+##########
+lcm_rcl_zone <- zonal(pop_data, lcm_rcl, fun = sum)
+
+lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
+View(lcm_rcl_zone_df)
+
+
+
+
+
+
+
+
+
+
+
+lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
+View(lcm_rcl_zone_df)
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
 
 
 ### Test mask, ignore.
