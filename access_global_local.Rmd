@@ -20,7 +20,7 @@ JL:
 
 ```{r setup_JRA, include=FALSE}
 
-
+# Forumate setup chunk
 
 ```
 
@@ -305,7 +305,7 @@ osm_road_raster <- fasterize(roads.poly, ndvi_assigned, "time_secs", fun = 'min'
 
 
 #### Merge NDVI and road rasters together
-The next step is to merge data for on-road and off-road trave to create one cohesive friction surface.
+The next step is to merge data for on-road and off-road travel to create one cohesive friction surface.
 In areas where "road" and "off-road" cells overlap, the road values will be retained as these will be associated with the lowest cost (quickest speed).
 
 ```{r genfriction}
@@ -477,9 +477,10 @@ wpCPRPopulation (year=2020,
 ## Error: Request failed :: Unsupported Geometry:  This operation supports only Polygons.
 
 ```
+### Unable to save SpatialPolygonsDataFrame as Polygon shapefile and so cannot upload to World Pop...
 
 
-### Option_3a: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) (Working). 
+### Option_3: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) (Working). 
 ```{r download_population_data_raster, include=FALSE}
 
 ### Add in raster population dataset layers ???
@@ -562,15 +563,9 @@ writeRaster(leastcost_motor_pop,
             format = "GTiff", 
             overwrite=TRUE)
 
-```
-
-### Option_3b: Extract from population rasters using polygon(s) (30 min) (Working)
-```{r population_30_min, include=FALSE}
 
 
-## Compute a 30 minute buffer zone around the health facilities and intersect that with population density ???
-
-
+### 30 minutes
 
 # Create data.frame from 'lcm_df'
 leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
@@ -612,10 +607,8 @@ thirty_min_pop <- extract(pop_data, thirty_min_polygoy_agg, fun = sum, na.rm = T
 thirty_min_pop
 # 281609.2
 
-```
 
-### Option_3b: Extract from population rasters using polygon(s) (60 min) (Working)
-```{r population_60_min, include=FALSE}
+### 60 minutes
 
 # Create data.frame from 'lcm_df'
 leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
@@ -660,9 +653,11 @@ sixty_min_pop
 # 799607.3
 
 ```
+### Working but generting polygon for time-boundaries takes a long time (30 min ~5 mins to generate, 60 min ~20 mins to generate...)
 
-### Option_3c: Extract from population rasters using reclasified rasters (rather than polygons) ???
-```{r population_60_min, include=FALSE}
+
+### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (Working)
+```{r reclassify_and_extract, include=FALSE}
 
 ## Reclassify 'leastcost_motor' and extract from 'pop_data'
 
@@ -674,35 +669,20 @@ View(lcm_df)
 lcm_raster <- rasterFromXYZ(lcm_df)
 plot(lcm_raster)
 
-
-##########
-rcl_matrix <- data.frame(lower_limit = c(0, 30, 60, 90, 120, 150, 180, 240),
-                         upper_limit = c(30, 60, 90, 120, 150, 180, 240, 300),
-                         reclassification = c(1, 2, 3, 4, 5, 6, 7, 8)
-                         )
-View(rcl_matrix)
-
-##########
-rcl_matrix_2 <- data.frame(time_boundary = c (0, 30, 60, 90, 120, 150, 180, 240, 300),
-                           reclassification = c(1, 2, 3, 4, 5, 6, 7, 8, 9)
-                           )
-
-View(rcl_matrix_2)
-
-##########
-rcl_matrix_3 <- c(0, 30, 1, # 30 minutes
-                  30, 60, 2, # 1 hour
-                  60, 180, 3, # 3 hours
-                  180, 360, 4, # 6 hours 
-                  360, 720, 5, # 12 hours
-                  720, 100000, 6 # 12+ hours
+# Create data.frame
+rcl_matrix <- c(0, 30, 1, # 30 minutes
+                30, 60, 2, # 1 hour
+                60, 180, 3, # 3 hours
+                180, 360, 4, # 6 hours 
+                360, 720, 5, # 12 hours
+                720, 100000, 6 # 12+ hours
 )
 
-rcl_matrix_3 <- matrix(rcl_matrix_3, ncol=3, byrow=TRUE)
-View(rcl_matrix_3)
+rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+View(rcl_matrix)
 
 # Reclassify 'lcm_raster' with 'rcl_matrix' 
-lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix_3, include.lowest=TRUE)
+lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
 
 # Check as data.frame
 lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
@@ -711,29 +691,29 @@ View(lcm_rcl_pop_data_df)
 # Zonal stuff
 lcm_rcl_zone <- zonal(pop_data, lcm_pop_data_rcl, fun = sum)
 
-
-
+# View
 lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
 View(lcm_rcl_zone_df)
 
+# Rename columns
+colnames(lcm_rcl_zone_df)
+names(lcm_rcl_zone_df)[1] <- "Zone"
+names(lcm_rcl_zone_df)[2] <- "Sum"
+View(lcm_rcl_zone_df)
+
+# Accumulate 
+lcm_rcl_zone_df$Population <-
+  
+   c(lcm_rcl_zone_df$Sum[1],
+     lcm_rcl_zone_df$Sum[2] + lcm_rcl_zone_df$Population[1],
+     lcm_rcl_zone_df$Sum[3] + lcm_rcl_zone_df$Population[2],
+     lcm_rcl_zone_df$Sum[4] + lcm_rcl_zone_df$Population[3],
+     lcm_rcl_zone_df$Sum[5] + lcm_rcl_zone_df$Population[4],
+     lcm_rcl_zone_df$Sum[6] + lcm_rcl_zone_df$Population[5])
+
+
+View(lcm_rcl_zone_df)
+print(lcm_rcl_zone_df)
+
 ```
-
-
-
-
-
-
-
-
-
-
-### Test mask, ignore.
-```{r test_mask, include=FALSE}
-
-# Test mask?
-test_mask <- mask(pop_data, thirty_min_polygoy_agg)
-plot(test_mask)
-
-```
-
 

@@ -11,5 +11,47 @@ Create a document that lists each of the stages involved in generating and summa
 Put in a table with headings 'Task', 'R' and 'GEE'. For each task note whether it's possible in R and/or GEE and make notes of packages, functions we're using to undertake the task.
 
 ### List tasks:
+
 * Setup
 * Install packages
+
+* Install rgee package (not avaliable from CRAN so download from GitHub)
+* Connect to GEE using rgee
+* Initialise rgee package
+
+* Define area of interest (aoi) using WGS84 coordinates
+* Create area of interest polygon
+
+* Read in LandSat 8 (LS8) Tier 1 data (not sure how data was accessed?)
+* Filter LS8 data by aoi and by collection data
+
+* Create a cloud mask
+* Apply cloud mask to filtered LS8 data
+
+* Calculate NVDI
+* Calculate median NVDI p/pixel
+
+* Clip to area of interest
+
+* These data are saved as image within GEE
+* Convert image to raster, which is saved as a .tif file in a temporary folder within either GDrive or GCS
+* Store in local folder
+
+* Download OpenStreetMap road data for aoi
+
+* Calculate and assign speeds
+  (NVDI pixels are calculated as walking speed)
+  (Roads calculated by motor vehicle speeds)
+
+* Merge NDVI and road rasters together to create friction surface raster
+
+* Add in health facility locations
+
+* Calculate transition matrix and cumulative cost
+
+
+
+
+
+
+
