@@ -266,7 +266,6 @@ ndviwalk_mps <- ndviwalk_kph/3.6
 # Convert to crossing time in seconds, assuming travel along hypotenuse and pixel size is 30m
 ndviwalk_secs <- 42.43/ndviwalk_mps
 
-  
 # Convert km/h to m/s
 ndviwalk_vec <- c(-1, 0.35, ndviwalk_secs[1], 0.35, 0.6, ndviwalk_secs[2], 0.6, 0.7, ndviwalk_secs[3], 0.7, 1, ndviwalk_secs[4])
 
@@ -317,6 +316,7 @@ friction_surface_motor <- mosaic(osm_road_raster, ndvi_assigned, fun = min, tole
 writeRaster(friction_surface_motor,
             "./outputs/friction_raster_motor",
             format = "GTiff", overwrite=TRUE)
+
 ```
 
 
@@ -477,7 +477,7 @@ wpCPRPopulation (year=2020,
 ## Error: Request failed :: Unsupported Geometry:  This operation supports only Polygons.
 
 ```
-### Unable to save SpatialPolygonsDataFrame as Polygon shapefile and so cannot upload to World Pop...
+### Unable to save SpatialPolygonsDataFrame as Polygon shapefile and so cannot upload to WorldPop...
 
 
 ### Option_3: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) (Working). 
@@ -659,6 +659,87 @@ sixty_min_pop
 ### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (Working)
 ```{r reclassify_and_extract, include=FALSE}
 
+## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
+# install.packages("devtools")
+# devtools::install_github("wpgp/wpgpDownloadR")
+
+# load package
+library(wpgpDownloadR)
+
+## Download ISO3 dataframe to obtain ISO3 info
+# 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
+ISO3_df <- wpgpListCountries()
+# View(ISO3_df)
+
+# Set country of interest (move to beginning of script within initial setup phase?)
+COI <- "Malawi"
+
+# Ascertain ISO3 of Malawi
+ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
+ISO3
+
+# 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
+# This function could be used to query the name of the dataset which then could be downloaded for a country.
+covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
+# Check data and check for covariates of interest
+View(covariates)
+
+# 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
+wpgpGetCountryDataset(ISO3 = ISO3,
+                      covariate = "ppp_2020",
+                      destDir = "./WorldPop")
+
+
+## .tif file is ~50 MB
+# Read in .tif file
+pop_data <- "./WorldPop/mwi_ppp_2020.tif"
+pop_data <- raster(pop_data)
+
+# Check
+pop_data
+# plot(pop_data)
+res(pop_data)
+# 0.0008333333 0.0008333333
+
+# Check raster resampling to ('leastcost_motor')
+leastcost_motor
+res(leastcost_motor)
+# 0.0002694946 0.0002694946
+
+## Need to resample to match resolution
+pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
+
+# Check
+res(pop_data) == res(leastcost_motor)
+# True
+# plot(pop_data)
+
+## Has also clipped raster to match extent of 'leastcost_motor'
+extent(pop_data) == extent(leastcost_motor)
+# True
+crs(pop_data)
+# WGS84
+crs(leastcost_motor)
+# WGS84
+
+## merge the pop_data and the leastcost_motor ???
+leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
+
+leastcost_motor_pop
+extent(leastcost_motor_pop) == extent(leastcost_motor)
+# True!
+crs(leastcost_motor_pop)
+# WGS84
+
+# Save raster
+writeRaster(leastcost_motor_pop,
+            "./WorldPop/pop_data",
+            format = "GTiff", 
+            overwrite=TRUE)
+
+
+
+
 ## Reclassify 'leastcost_motor' and extract from 'pop_data'
 
 # Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
@@ -669,7 +750,7 @@ View(lcm_df)
 lcm_raster <- rasterFromXYZ(lcm_df)
 plot(lcm_raster)
 
-# Create data.frame
+# Create matrix
 rcl_matrix <- c(0, 30, 1, # 30 minutes
                 30, 60, 2, # 1 hour
                 60, 180, 3, # 3 hours
@@ -695,23 +776,23 @@ lcm_rcl_zone <- zonal(pop_data, lcm_pop_data_rcl, fun = sum)
 lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
 View(lcm_rcl_zone_df)
 
-# Rename columns
+# Rename columns and add 'Population' column
 colnames(lcm_rcl_zone_df)
 names(lcm_rcl_zone_df)[1] <- "Zone"
 names(lcm_rcl_zone_df)[2] <- "Sum"
 View(lcm_rcl_zone_df)
 
-# Accumulate 
+# Add population column
 lcm_rcl_zone_df$Population <-
   
-   c(lcm_rcl_zone_df$Sum[1],
-     lcm_rcl_zone_df$Sum[2] + lcm_rcl_zone_df$Population[1],
-     lcm_rcl_zone_df$Sum[3] + lcm_rcl_zone_df$Population[2],
-     lcm_rcl_zone_df$Sum[4] + lcm_rcl_zone_df$Population[3],
-     lcm_rcl_zone_df$Sum[5] + lcm_rcl_zone_df$Population[4],
-     lcm_rcl_zone_df$Sum[6] + lcm_rcl_zone_df$Population[5])
+  c(sum(lcm_rcl_zone_df$Sum[1]),
+    sum(lcm_rcl_zone_df$Sum[1:2]),
+    sum(lcm_rcl_zone_df$Sum[1:3]),
+    sum(lcm_rcl_zone_df$Sum[1:4]),
+    sum(lcm_rcl_zone_df$Sum[1:5]),
+    sum(lcm_rcl_zone_df$Sum[1:6]))
 
-
+# Check
 View(lcm_rcl_zone_df)
 print(lcm_rcl_zone_df)
 
