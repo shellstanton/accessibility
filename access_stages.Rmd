@@ -5,15 +5,10 @@ date: "29/01/2021"
 output: pdf_document
 ---
 
-### MRes mini project: Task_9:
-
-Create a document that lists each of the stages involved in generating and summarising the accessibility surface. 
-Put in a table with headings 'Task', 'R' and 'GEE'. For each task note whether it's possible in R and/or GEE and make notes of packages, functions we're using to undertake the task.
-
 ### List tasks:
 
 * Setup
-* Install packages
+* Download/install packages
 
 * Install rgee package (not avaliable from CRAN so download from GitHub)
 * Connect to GEE using rgee
@@ -34,7 +29,7 @@ Put in a table with headings 'Task', 'R' and 'GEE'. For each task note whether i
 * Clip to area of interest
 
 * These data are saved as image within GEE
-* Convert image to raster, which is saved as a .tif file in a temporary folder within either GDrive or GCS
+* Convert data to raster, which is saved as a .tif file in a temporary folder within either GDrive or GCS
 * Store in local folder
 
 * Download OpenStreetMap road data for aoi

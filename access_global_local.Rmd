@@ -689,7 +689,6 @@ wpgpGetCountryDataset(ISO3 = ISO3,
                       covariate = "ppp_2020",
                       destDir = "./WorldPop")
 
-
 ## .tif file is ~50 MB
 # Read in .tif file
 pop_data <- "./WorldPop/mwi_ppp_2020.tif"
@@ -736,9 +735,6 @@ writeRaster(leastcost_motor_pop,
             "./WorldPop/pop_data",
             format = "GTiff", 
             overwrite=TRUE)
-
-
-
 
 ## Reclassify 'leastcost_motor' and extract from 'pop_data'
 
