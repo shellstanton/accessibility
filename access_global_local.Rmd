@@ -32,6 +32,26 @@ JL:
 
 knitr::opts_chunk$set(echo = TRUE)
 
+<<<<<<< Updated upstream
+=======
+```
+
+
+### MRes mini project: Task_8
+
+Restructure code so it contains an initial section for user inputs relating to:
+* area of interest
+* road travel speeds
+* NDVI parameters i.e. period of time over which to summarise NDVI plus walking speeds assigned to NDVI intervals
+JL:
+* I envisage that most users won't know the coordinates for the bounding box of their area of interest, but may have a shapefile, or know the name of a district.
+* Would it be useful to allow the option of a data-upload at the start of the script? We can grab the extent from a spatial object. 
+
+```{r setup_JRA, include=FALSE}
+
+# Forumate setup chunk
+
+>>>>>>> Stashed changes
 ```
 
 
@@ -63,9 +83,9 @@ The key steps of the below are:
 4. Combining on-road and off-road data to produce one combined friction surface.
 5. Identifying the location of health facilities to use within a cost-distance analysis using the friction surface.
 
+
 ### NDVI data generation using rgee
 I keep having issues with the rgee package, so I suggest at some point we split this Rmd file so that we keep the GEE part in one file, and the cost-distance surface generation in another. Users can then either have the option of generating the NDVI in R, or using GEE directly, with the link to the code provided.
-
 ```{r}
 
 ## install rgee from github
@@ -80,7 +100,11 @@ This first bit is all about connecting to GEE via the rgee package. You should o
 
 ```{r, eval=F}
 
+<<<<<<< Updated upstream
 # Only need to run once
+=======
+## Only need to run once
+>>>>>>> Stashed changes
 # ee_install()
 
 ```
@@ -92,7 +116,6 @@ Then, initialise GEE. This will check whether you have everything set up to use 
 We then initialise the rgee package. Once rgee is installed I believe you only need to do this once.
 
 Note that you need to link to a Google account that has been given GEE access to be able to complete this stage. As we'll also be using Google Drive for downloading and uploading data, we also need to include 'drive=TRUE'. 
-
 ```{r, eval=F}
 
 ee_Initialize(drive = TRUE)
@@ -105,7 +128,6 @@ Now we can use R to run code on Google Earth Engine. Note that lots of examples 
 First, define the area of interest:
 
 Start by detailing limits for a bounding box (lat/long maximum and minimum values, in WGS84).
-
 ```{r bblims}
 
 ## max and minimum values for longitude and latitude
@@ -195,9 +217,13 @@ Map$addLayer(
 
 ```
 
+<<<<<<< Updated upstream
 
 These data are all stored as an image within GEE. We can convert this image to a raster and download it using Google drive (drive) or Google Cloud Storage (gcs). More information on this can be obtained here url{https://r-spatial.github.io/rgee/reference/ee_as_raster.html} 
+=======
+>>>>>>> Stashed changes
 
+These data are all stored as an image within GEE. We can convert this image to a raster and download it using Google drive (drive) or Google Cloud Storage (gcs). More information on this can be obtained here url{https://r-spatial.github.io/rgee/reference/ee_as_raster.html} 
 ```{r, eval=F}
 
 med_ndvi <- ee_as_raster(
@@ -209,15 +235,23 @@ med_ndvi <- ee_as_raster(
 
 ```
 
+<<<<<<< Updated upstream
 
 The TIFF file is stored in a temporary folder, which we can then write to our data folder. I'll write the code to save this as NDVIgee.tif for now rather than overwrite the NDVIexample.tif that is currently there (although both should be the same). The 'eval' parameter is still set to FALSE.
+=======
+>>>>>>> Stashed changes
 
+The TIFF file is stored in a temporary folder, which we can then write to our data folder. I'll write the code to save this as NDVIgee.tif for now rather than overwrite the NDVIexample.tif that is currently there (although both should be the same). The 'eval' parameter is still set to FALSE.
 ```{r, eval=F}
 
 writeRaster(med_ndvi,
             "./data/NDVIgee",
+<<<<<<< Updated upstream
             format = "GTiff", 
             overwrite=TRUE)
+=======
+            format = "GTiff", overwrite=TRUE)
+>>>>>>> Stashed changes
 
 ```
 
@@ -227,7 +261,6 @@ To detail travel speeds within our area of interest, we are utilising an open so
 www.openstreetmap.org. 
 
 We can directly download OSM road data for our aoi within R. The bounding box is in the format c(xmin, ymin, xmax, ymax), using the limits defined earlier in the script.
-
 ```{r osmdownload}
 
 ## define bounding box
@@ -248,7 +281,6 @@ We now want to assign speeds to the NDVI pixels plus the roads
 
 #### NDVI pixels by walking speed
 Need to document how these speeds are determined and how they vary by season and location for example.
-
 ```{r ndvireclass}
 
 # Temporarily read in NDVIexample from folder, which has been directly downloaded from GEE.
@@ -281,7 +313,6 @@ ndvi_assigned <- reclassify(ndvi_assigned, ndviwalk_mat)
 #### Roads by motor vehicle
 Again, need to document how these speeds are determined and how they may vary by season.
 We are currently using national speed limits as a maximum for primary and major roads.
-
 ```{r toraster, warning=FALSE}
 
 # Primary = 80kph, secondary = 80kph, 'Other' road speed = 20 kph
@@ -306,7 +337,6 @@ osm_road_raster <- fasterize(roads.poly, ndvi_assigned, "time_secs", fun = 'min'
 #### Merge NDVI and road rasters together
 The next step is to merge data for on-road and off-road travel to create one cohesive friction surface.
 In areas where "road" and "off-road" cells overlap, the road values will be retained as these will be associated with the lowest cost (quickest speed).
-
 ```{r genfriction}
 
 ## merge the NDVI and the OSM, retain the minimum value (this is the quickest cell crossing time)
@@ -322,18 +352,25 @@ writeRaster(friction_surface_motor,
 
 ### Calculate shortest paths
 First, add in health facility locations. Currently I'm reading in the facilities around Vwaza that have rHAT diagnostics, but will edit this to use afrimapr.
-
 ```{r, message=FALSE, results=FALSE}
 
 healthfac <- st_read("./data/healthfacexample.shp")
+<<<<<<< Updated upstream
 
 ```
 
 ```{r}
+=======
+
+```
+
+
+```{r, warning=FALSE}
+>>>>>>> Stashed changes
 
 # First calculate the transition matrix
 # Check the transitionFunction
-trans_motor <- transition(friction_surface_motor, transitionFunction = function(x){1/mean(x)}, directions=8)
+trans_motor <- transition(friction_surface_motor, transitionFunction = function(x){1/mean(x)}, directions = 8)
 
 # Then calculate the cumulative cost
 leastcost_motor <-  accCost(trans_motor, as_Spatial(healthfac))
@@ -343,10 +380,15 @@ writeRaster(leastcost_motor,
             format = "GTiff", overwrite=TRUE)
 
 ```
+<<<<<<< Updated upstream
 
 
 Now create some plots of the data.
+=======
+>>>>>>> Stashed changes
 
+
+Now create some plots of the data.
 ```{r, warning=FALSE}
 
 ## warning for removing NA pixels is masked
@@ -360,6 +402,10 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
     geom_sf(data=healthfac, size=2, colour="red")+
     guides(fill=guide_legend(title="Time (mins)"))
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 ```
 
 
@@ -376,6 +422,7 @@ Add in population rasters, and calculate the number/proportion of the population
 *You may want to further categorise the population as "at-risk" or "not at-risk" of infection. I think we should get the ball rolling with just one population surface for the moment and this is something we can code in later down the line.
 
 
+<<<<<<< Updated upstream
 ### Option_1: Extract time-boundary polygons from 'leastcost_motor' ???
 ```{r isolate_time_boundary_polygons, include=FALSE}
 
@@ -388,13 +435,27 @@ test <- rasterToPolygons(leastcost_motor,
                          fun = function(x){x < 1000},
                          dissolve = TRUE)
 
+=======
+### Option_1: Extract time-boundary polygons from 'leastcost_motor' ??? (*not working*)
+```{r isolate_time_boundary_polygons, include=FALSE}
+
+### Extract points (< 30 mins from health facilities) from leastcost_motor then create polygon ???
+# extract(leastcost_motor, XXX?,)
+test <- rasterToPolygons(leastcost_motor, 
+                         fun = function(x){x < 1000},
+                         dissolve = TRUE)
+>>>>>>> Stashed changes
 test
 plot(test)
 
 ```
 
 
+<<<<<<< Updated upstream
 ### Option_2: Subset time-boundary data from data.frame, create polygon(s) and submit to WorldPop ???
+=======
+### Option_2: Subset time-boundary data from data.frame, create polygon(s) and submit to WorldPop ??? (*not working*)
+>>>>>>> Stashed changes
 ```{r subset_dataframe_and_submit_polygon_to_WorldPop, include=FALSE}
 
 # Load dplyr
@@ -426,6 +487,10 @@ thirty_min_raster <- rasterFromXYZ(thirty_min)
 # View(thirty_min_raster)
 thirty_min_raster
 # RasterLayer
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 # No CRS assigned...
 plot(thirty_min_raster)
 
@@ -436,6 +501,10 @@ thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
 thirty_min_polygon
 # Is a SpatialPolygonsDataFrame (spdf)
 # Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 plot(thirty_min_polygon)
 # A solid shape, whereas we need boundary data
 
@@ -444,7 +513,10 @@ thirty_min_polygon_agg <- aggregate(thirty_min_polygon)
 
 # Check
 # plot(thirty_min_polygon_agg)
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 thirty_min_polygon_agg
 # Class: SpatialPolygons 
 
@@ -452,15 +524,25 @@ thirty_min_polygon_agg
 writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile", overwrite=TRUE)
 
 st_write(thirty_min_polygon_agg, dsn = "thirty_min_polygon_agg", layer = "thirty_min_polygon_agg")
+<<<<<<< Updated upstream
 
 # Cannot save as shapefile as 'thirty_min_polygon_agg' is 'SpatialPolygons' and needs to be 'SpatialPolygonsDataFrame'
+=======
+# Cannot save as shapefile as 'thirty_min_polygon_agg' is 'SpatialPolygons' and needs to be 'SpatialPolygonsDataFrame'
+
+>>>>>>> Stashed changes
 # Convert 'thirty_min_polygon_agg' to SpatialPolygonsDataFrame
 thirty_min_polygon_agg_df <- SpatialPolygonsDataFrame(thirty_min_polygon_agg, data = as.data.frame("thirty_min_polygon_agg_df"))
 ## But this saves as SpatialPolygonsDataFrame? Not polygon?
 
 ## Install and use wpCPR : An R package to submit a custom polygon request to the WorldPop API
 # install.packages("devtools")
+<<<<<<< Updated upstream
 #devtools::install_github("wpgp/wpCPR")
+=======
+
+# devtools::install_github("wpgp/wpCPR")
+>>>>>>> Stashed changes
 
 # load package
 library(wpCPR)
@@ -480,6 +562,7 @@ wpCPRPopulation (year=2020,
 ### Unable to save SpatialPolygonsDataFrame as Polygon shapefile and so cannot upload to WorldPop...
 
 
+<<<<<<< Updated upstream
 ### Option_3: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) (Working). 
 ```{r download_population_data_raster, include=FALSE}
 
@@ -487,6 +570,15 @@ wpCPRPopulation (year=2020,
 
 ## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
 # install.packages("devtools")
+=======
+### Option_3: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) (*working*). 
+```{r download_population_data_raster, include=FALSE}
+
+### Add in raster population dataset layers ???
+## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
+# install.packages("devtools")
+
+>>>>>>> Stashed changes
 # devtools::install_github("wpgp/wpgpDownloadR")
 
 # load package
@@ -495,6 +587,10 @@ library(wpgpDownloadR)
 ## Download ISO3 dataframe to obtain ISO3 info
 # 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
 ISO3_df <- wpgpListCountries()
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 # View(ISO3_df)
 
 # Set country of interest (move to beginning of script within initial setup phase?)
@@ -507,6 +603,10 @@ ISO3
 # 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
 # This function could be used to query the name of the dataset which then could be downloaded for a country.
 covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 # Check data and check for covariates of interest
 View(covariates)
 
@@ -515,15 +615,30 @@ wpgpGetCountryDataset(ISO3 = ISO3,
                       covariate = "ppp_2020",
                       destDir = "./WorldPop")
 
+<<<<<<< Updated upstream
 
 ## .tif file is ~50 MB
 # Read in .tif file
 pop_data <- "./WorldPop/mwi_ppp_2020.tif"
+=======
+## .tif file is ~50 MB
+# Read in .tif file
+pop_data <- "./WorldPop/mwi_ppp_2020.tif"
+
+# Create raster
+>>>>>>> Stashed changes
 pop_data <- raster(pop_data)
 
 # Check
 pop_data
+<<<<<<< Updated upstream
 # plot(pop_data)
+=======
+
+# plot(pop_data)
+
+# Check resolution
+>>>>>>> Stashed changes
 res(pop_data)
 # 0.0008333333 0.0008333333
 
@@ -538,6 +653,10 @@ pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
 # Check
 res(pop_data) == res(leastcost_motor)
 # True
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 # plot(pop_data)
 
 ## Has also clipped raster to match extent of 'leastcost_motor'
@@ -552,8 +671,15 @@ crs(leastcost_motor)
 leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
 
 leastcost_motor_pop
+<<<<<<< Updated upstream
 extent(leastcost_motor_pop) == extent(leastcost_motor)
 # True!
+=======
+
+extent(leastcost_motor_pop) == extent(leastcost_motor)
+# True!
+
+>>>>>>> Stashed changes
 crs(leastcost_motor_pop)
 # WGS84
 
@@ -563,12 +689,19 @@ writeRaster(leastcost_motor_pop,
             format = "GTiff", 
             overwrite=TRUE)
 
+<<<<<<< Updated upstream
 
 
 ### 30 minutes
 
 # Create data.frame from 'lcm_df'
 leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
+=======
+### 30 minutes
+# Create data.frame from 'lcm_df'
+leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
+
+>>>>>>> Stashed changes
 View(leastcost_motor_pop_df)
 
 # Subset data.frame by <30 minutes
@@ -579,12 +712,21 @@ thirty_min$layer <- NULL
 
 # Create raster
 thirty_min_raster <- rasterFromXYZ(thirty_min)
+<<<<<<< Updated upstream
 
 # Check
+=======
+# Check
+
+>>>>>>> Stashed changes
 # View(thirty_min_raster)
 thirty_min_raster
 # RasterLayer
 # No CRS assigned...
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 plot(thirty_min_raster)
 
 # Create polygon (takes ~5 mins)
@@ -594,11 +736,19 @@ thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
 thirty_min_polygon
 # Is a SpatialPolygonsDataFrame (spdf)
 # Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 plot(thirty_min_polygon)
 # A solid shape, whereas we need boundary vector
 
 # Aggregate 'thirty_min_polygon' to give boundary 
 thirty_min_polygoy_agg <- aggregate(thirty_min_polygon)
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 # Check
 plot(thirty_min_polygoy_agg)
 
@@ -609,9 +759,15 @@ thirty_min_pop
 
 
 ### 60 minutes
+<<<<<<< Updated upstream
 
 # Create data.frame from 'lcm_df'
 leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
+=======
+# Create data.frame from 'lcm_df'
+leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
+
+>>>>>>> Stashed changes
 View(leastcost_motor_pop_df)
 
 # Subset data.frame by <60 minutes
@@ -619,7 +775,10 @@ sixty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 60, ]
 
 # Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
 sixty_min$layer <- NULL
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 View(sixty_min)
 
 # Create raster
@@ -630,6 +789,10 @@ sixty_min_raster <- rasterFromXYZ(sixty_min)
 sixty_min_raster
 # RasterLayer
 # No CRS assigned...
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 plot(sixty_min_raster)
 
 # Create polygon (takes ~10 mins)
@@ -639,16 +802,28 @@ sixty_min_polygon <- rasterToPolygons(sixty_min_raster, dissolve = TRUE)
 sixty_min_polygon
 # Is a SpatialPolygonsDataFrame (spdf)
 # Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 plot(sixty_min_polygon)
 # A solid shape, whereas we need boundary vector
 
 # Aggregate 'sixty_min_polygon' to give boundary 
 sixty_min_polygoy_agg <- aggregate(sixty_min_polygon)
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 # Check
 plot(sixty_min_polygoy_agg)
 
 # Extract and sum population data from 'pop_data' by using 'sixty_min_polygoy_agg'
 sixty_min_pop <- extract(pop_data, sixty_min_polygoy_agg, fun = sum, na.rm = TRUE)
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 sixty_min_pop
 # 799607.3
 
@@ -656,11 +831,21 @@ sixty_min_pop
 ### Working but generting polygon for time-boundaries takes a long time (30 min ~5 mins to generate, 60 min ~20 mins to generate...)
 
 
+<<<<<<< Updated upstream
 ### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (Working)
 ```{r reclassify_and_extract, include=FALSE}
 
 ## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
 # install.packages("devtools")
+=======
+### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (*working*)
+```{r reclassify_and_extract, include=FALSE}
+
+## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
+#install.packages("devtools")
+
+## Install 'wpgpDownloadR' package
+>>>>>>> Stashed changes
 # devtools::install_github("wpgp/wpgpDownloadR")
 
 # load package
@@ -677,10 +862,18 @@ COI <- "Malawi"
 # Ascertain ISO3 of Malawi
 ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
 ISO3
+<<<<<<< Updated upstream
+=======
+# MWI
+>>>>>>> Stashed changes
 
 # 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
 # This function could be used to query the name of the dataset which then could be downloaded for a country.
 covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 # Check data and check for covariates of interest
 View(covariates)
 
@@ -697,6 +890,10 @@ pop_data <- raster(pop_data)
 # Check
 pop_data
 # plot(pop_data)
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 res(pop_data)
 # 0.0008333333 0.0008333333
 
@@ -723,8 +920,13 @@ crs(leastcost_motor)
 
 ## merge the pop_data and the leastcost_motor ???
 leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
+<<<<<<< Updated upstream
 
 leastcost_motor_pop
+=======
+leastcost_motor_pop
+
+>>>>>>> Stashed changes
 extent(leastcost_motor_pop) == extent(leastcost_motor)
 # True!
 crs(leastcost_motor_pop)
@@ -736,13 +938,22 @@ writeRaster(leastcost_motor_pop,
             format = "GTiff", 
             overwrite=TRUE)
 
+<<<<<<< Updated upstream
 ## Reclassify 'leastcost_motor' and extract from 'pop_data'
 
+=======
+
+### Reclassify 'leastcost_motor' and extract from 'pop_data'
+>>>>>>> Stashed changes
 # Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
 View(lcm_df)
 lcm_df$layer = NULL
 View(lcm_df)
 
+<<<<<<< Updated upstream
+=======
+# Create reaster
+>>>>>>> Stashed changes
 lcm_raster <- rasterFromXYZ(lcm_df)
 plot(lcm_raster)
 
@@ -794,3 +1005,7 @@ print(lcm_rcl_zone_df)
 
 ```
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
