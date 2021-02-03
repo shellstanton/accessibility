@@ -28,35 +28,46 @@ View(rcl_matrix)
 lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
 lcm_pop_data_rcl
 
-### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours ans so canceled
+### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours and so canceled
 
 # Check as data.frame
 lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
 View(lcm_rcl_pop_data_df)
 
 
-### Try to generate polygon(s)
+##### Try to generate polygon(s)
 
-
+##### 1.
 # install.packages("FRK")
 library(FRK)
 
 # Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
 lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
+
 plot(lcm_rcl_pop_data_polygons)
+
 lcm_rcl_pop_data_polygons
 # spatialpolygons
 
-## Can this be saved as polygon and uploaded to WorldPop?
+## Can this be saved as polygon (.shp) and uploaded to WorldPop?
 
-# Save as shapefile
-writeOGR(lcm_rcl_pop_data_polygons, dsn = "lcm_rcl_pop_data_polygons_shp, layer = "lcm_rcl_pop_data_polygons_shp", driver = "ESRI Shapefile", overwrite = TRUE)
+## Save as shapefile
+
+library(rgdal)
+writeOGR(lcm_rcl_pop_data_polygons, 
+         dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
+         layer = 'lcm_rcl_polygons', 
+         driver = "ESRI Shapefile")
+# Error in writeOGR(lcm_rcl_pop_data_polygons, dsn = "lcm_rcl_pop_data_polygons_shp",  : obj must be a SpatialPointsDataFrame, SpatialLinesDataFrame or SpatialPolygonsDataFrame
 
 
 
+##### 2: stars package
+lcm_pop_data_rcl
 
-# Save as shapefile
-writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile", overwrite=TRUE)
+library(stars)
+
+lcm_pop_data_rcl_sf =  st_contour(lcm_pop_data_rcl, contour_lines = TRUE, breaks = 1:6)
 
 
 
@@ -69,19 +80,21 @@ lcm_rcl_pop_data_polygons_converted <- st_cast(lcm_rcl_pop_data_polygons, "POLYG
 
 
 
-# Aggregate 'sixty_min_polygon' to give boundary 
-lcm_rcl_pop_data_polygons_agg <- aggregate(lcm_rcl_pop_data_polygons)
-
-# Aggregate 'sixty_min_polygon' to give boundary 
-sixty_min_polygoy_agg <- aggregate(sixty_min_polygon)
 
 
-# install.packages("stars")
-# library("stars")
 
 
-lcm_pop_data_rcl_stars <- read_stars(lcm_pop_data_rcl)
 
 
-test <- st_contour(lcm_pop_data_rcl, contour_lines = FALSE, breaks = 1:6)
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "lcm_rcl_pop_data_polygons",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
 
