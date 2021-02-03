@@ -396,7 +396,7 @@ library(dplyr)
 View(lcm_df)
 
 # Subset by < 30 mins 
-thirty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 30, ]
+thirty_min <- lcm_df[lcm_df$mins < 30, ]
 
 # Check
 View(thirty_min)
@@ -411,19 +411,26 @@ ggplot()+geom_raster(data=thirty_min, aes(x = x, y = y, fill = cut(mins, c(0,30,
     geom_sf(data=healthfac, size=2, colour="red")+
     guides(fill=guide_legend(title="Time (mins)"))
 
+
+
+
+##### Create polygon from data.frame ???
+
+
+
 # Create raster
 thirty_min_raster <- rasterFromXYZ(thirty_min)
 
 # Check
-# View(thirty_min_raster)
+View(thirty_min_raster)
 thirty_min_raster
 # RasterLayer
-
 # No CRS assigned...
-plot(thirty_min_raster)
 
-# Create polygon (takes about 5-10 mins)
-thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
+# plot(thirty_min_raster)
+
+# Create polygon (takes ~5 mins)
+# thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
 
 # Check
 thirty_min_polygon
@@ -592,7 +599,7 @@ thirty_min_raster
 plot(thirty_min_raster)
 
 # Create polygon (takes ~5 mins)
-thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
+# thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
 
 # Check
 thirty_min_polygon
@@ -670,10 +677,10 @@ sixty_min_pop
 ### Working but generting polygon for time-boundaries takes a long time (30 min ~5 mins to generate, 60 min ~20 mins to generate...)
 
 
-### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (Working)
+### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (*working*)
 ```{r reclassify_and_extract, include=FALSE}
 
-## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
+##### Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
 #install.packages("devtools")
 
 ## Install 'wpgpDownloadR' package
@@ -757,7 +764,7 @@ writeRaster(leastcost_motor_pop,
             overwrite=TRUE)
 
 
-### Reclassify 'leastcost_motor' and extract from 'pop_data'
+##### Reclassify 'leastcost_motor' and extract from 'pop_data'
 
 # Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
 View(lcm_df)
@@ -782,6 +789,9 @@ View(rcl_matrix)
 
 # Reclassify 'lcm_raster' with 'rcl_matrix' 
 lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
+lcm_pop_data_rcl
+
+### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours ans so cancelled
 
 # Check as data.frame
 lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
@@ -815,3 +825,37 @@ View(lcm_rcl_zone_df)
 print(lcm_rcl_zone_df)
 
 ```
+
+
+Option_5: Create polygon(s) from 'lcm_pop_data_rcl' using 'stars' package and submit to WorldPop
+```{r, warning=FALSE}
+
+# Raster
+lcm_pop_data_rcl
+plot(lcm_pop_data_rcl)
+
+# dataframe
+View(lcm_rcl_pop_data_df)
+lcm_rcl_pop_data_df
+
+# install.packages("FRK")
+# library(FRK)
+
+# Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
+test <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
+plot(test)
+
+# install.packages("stars")
+# library("stars")
+
+
+lcm_pop_data_rcl_stars <- read_stars(lcm_pop_data_rcl)
+
+
+test <- st_contour(lcm_pop_data_rcl, contour_lines = FALSE, breaks = 1:6)
+
+
+```
+
+
+
