@@ -839,11 +839,17 @@ View(lcm_rcl_pop_data_df)
 lcm_rcl_pop_data_df
 
 # install.packages("FRK")
-# library(FRK)
+library(FRK)
 
 # Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
-test <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
-plot(test)
+lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
+plot(lcm_rcl_pop_data_polygons)
+lcm_rcl_pop_data_polygons
+
+
+
+
+
 
 # install.packages("stars")
 # library("stars")
