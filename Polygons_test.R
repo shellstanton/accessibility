@@ -53,7 +53,7 @@ lcm_rcl_pop_data_polygons
 
 ## Save as shapefile
 
-library(rgdal)
+# library(rgdal)
 writeOGR(lcm_rcl_pop_data_polygons, 
          dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
          layer = 'lcm_rcl_polygons', 
@@ -64,37 +64,48 @@ writeOGR(lcm_rcl_pop_data_polygons,
 
 ##### 2: stars package
 lcm_pop_data_rcl
+plot(lcm_pop_data_rcl)
 
 library(stars)
 
-lcm_pop_data_rcl_sf =  st_contour(lcm_pop_data_rcl, contour_lines = TRUE, breaks = 1:6)
+# Convert 'lcm_pop_data_rcl' from rasterlayer to 'stars' object
+lcm_pop_data_rcl_stars <- st_as_stars(lcm_pop_data_rcl)
+lcm_pop_data_rcl_stars
+
+lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE, breaks = 1:6)
+
+# Check
+plot(lcm_pop_data_rcl_stars_sf)
+lcm_pop_data_rcl_stars_sf
+# geometry type: linestring
+
+# Convert from linestring to polygon
+lcm_pop_data_rcl_stars_sf_polygon <- st_cast(lcm_pop_data_rcl_stars_sf, "POLYGON")
+lcm_pop_data_rcl_stars_sf_polygon
+# POLYGON
+
+
+# Aggregate 
+lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon, by = lcm_pop_data_rcl_stars_sf_polygon)
 
 
 
+# Save as polygon
+st_write(lcm_pop_data_rcl_stars_sf_polygon, dsn = "time_boundary_polygon", layer = "time_boundary_polygon", driver = "ESRI Shapefile", overwrite = TRUE)
 
-
-
-lcm_rcl_pop_data_polygons_converted <- st_cast(lcm_rcl_pop_data_polygons, "POLYGON")
-
-
-
-
-
-
-
-
-
-
-
+## Submit to WorldPop
 # load package
 library(wpCPR)
 
 wpCPRPopulation (year=2020,
-                 shapeFilePath = "lcm_rcl_pop_data_polygons",
+                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
                  outputFilePath = NULL,
                  apikey = NULL,
                  callbacktime = 5,
                  maxexectime = 3600,
                  apiurl = NULL,
                  verbose = TRUE)
+
+## Trying to send 16487 tasks...
+
 
