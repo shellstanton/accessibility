@@ -229,8 +229,8 @@ aoi_bbox = c(bbxmin, bbymin, bbxmax, bbymax)
 
 ## obtain road data
 q <- opq(bbox = aoi_bbox) %>%
-    add_osm_feature(key = 'highway') %>%
-    osmdata_sf()
+     add_osm_feature(key = 'highway') %>%
+     osmdata_sf()
 
 ggplot(q$osm_lines)+geom_sf()
 
@@ -451,8 +451,6 @@ thirty_min_polygon_agg
 
 # Save as shapefile
 writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile", overwrite=TRUE)
-
-st_write(thirty_min_polygon_agg, dsn = "thirty_min_polygon_agg", layer = "thirty_min_polygon_agg")
 # Cannot save as shapefile as 'thirty_min_polygon_agg' is 'SpatialPolygons' and needs to be 'SpatialPolygonsDataFrame'
 
 # Convert 'thirty_min_polygon_agg' to SpatialPolygonsDataFrame
@@ -707,7 +705,7 @@ ISO3
 covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
 
 # Check data and check for covariates of interest
-View(covariates)
+# View(covariates)
 
 # 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
 wpgpGetCountryDataset(ISO3 = ISO3,
@@ -791,7 +789,7 @@ View(rcl_matrix)
 lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
 lcm_pop_data_rcl
 
-### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours ans so cancelled
+### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours ans so canceled
 
 # Check as data.frame
 lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
@@ -827,41 +825,172 @@ print(lcm_rcl_zone_df)
 ```
 
 
-Option_5: Create polygon(s) from 'lcm_pop_data_rcl' using 'stars' package and submit to WorldPop
-```{r, warning=FALSE}
+### Option_5: Use 'stars' package to generate polygon(s) to save as .shp and submit to WorldPop 
+```{r}
 
-# Raster
+##### Reclassify 'leastcost_motor' and extract from 'pop_data'
+
+# Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
+View(lcm_df)
+lcm_df$layer = NULL
+View(lcm_df)
+
+# Create raster
+lcm_raster <- rasterFromXYZ(lcm_df)
+plot(lcm_raster)
+
+# Create matrix
+rcl_matrix <- c(0, 30, 1, # 30 minutes
+                30, 60, 2, # 1 hour
+                60, 180, 3, # 3 hours
+                180, 360, 4, # 6 hours 
+                360, 720, 5, # 12 hours
+                720, 100000, 6 # 12+ hours
+)
+
+rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+# Check
+View(rcl_matrix)
+
+# Reclassify 'lcm_raster' with 'rcl_matrix' 
+lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
 lcm_pop_data_rcl
-plot(lcm_pop_data_rcl)
 
-# dataframe
+### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours and so canceled
+
+# Check as data.frame
+lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
 View(lcm_rcl_pop_data_df)
-lcm_rcl_pop_data_df
 
+
+##### Try to generate polygon(s)
+
+##### Option_1: 'FKR' package: Bad; requires subsetting dataframe and cannot save as polygon .shp
 # install.packages("FRK")
 library(FRK)
 
 # Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
 lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
+
 plot(lcm_rcl_pop_data_polygons)
+
 lcm_rcl_pop_data_polygons
+# spatialpolygons
+
+## Can this be saved as polygon (.shp) and uploaded to WorldPop?
+
+## Save as shapefile
+
+library(rgdal)
+writeOGR(lcm_rcl_pop_data_polygons, 
+         dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
+         layer = 'lcm_rcl_polygons', 
+         driver = "ESRI Shapefile")
+# Error in writeOGR(lcm_rcl_pop_data_polygons, dsn = "lcm_rcl_pop_data_polygons_shp",  : obj must be a SpatialPointsDataFrame, SpatialLinesDataFrame or SpatialPolygonsDataFrame
+
+
+
+##### 2: stars package - *working* ???
+lcm_pop_data_rcl
+plot(lcm_pop_data_rcl)
+
+library(stars)
+
+# Convert 'lcm_pop_data_rcl' from rasterlayer to 'stars' object
+lcm_pop_data_rcl_stars <- st_as_stars(lcm_pop_data_rcl)
+lcm_pop_data_rcl_stars
+# stars object
+
+# contour to boundary lines
+lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE, breaks = 1:6)
+
+# Check
+plot(lcm_pop_data_rcl_stars_sf)
+lcm_pop_data_rcl_stars_sf
+# geometry type: linestring
+
+# Convert from linestring to polygon
+lcm_pop_data_rcl_stars_sf_polygon <- st_cast(lcm_pop_data_rcl_stars_sf, "POLYGON")
+
+# Check
+plot(lcm_pop_data_rcl_stars_sf_polygon)
+lcm_pop_data_rcl_stars_sf_polygon
+# geometry type: POLYGON
+
+
+
+# Aggregate ???
+# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon)
+# Took 30+ minutes so canceled
+
+
+
+# ms_lines ???
+# lcm_pop_data_rcl_stars_sf_polygon_lines <- ms_lines(lcm_pop_data_rcl_stars_sf_polygon)
+# lcm_pop_data_rcl_stars_sf_polygon_lines
+# multilinestring
+
+
+
+# Try to dissolve using 'rmapshaper' package ???
+# install.packages("rmapshaper")
+# library(rmapshaper)
+
+# Dissolve using 'ms_dissolve'
+# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test <- ms_dissolve(lcm_pop_data_rcl_stars_sf_polygon)
+# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test
+# geometry type:multipolygon?
+
+# use 'st_cast' again to convet from multipolygon to polygon
+# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test, "POLYGON")
+# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon
+# geometry type: POLYGON
+
+# Check
+# plot(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon)
+
+# Save as polygon
+st_write(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon,
+         dsn = "time_boundary_polygon", 
+         layer = "time_boundary_polygon", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## POST-st_dissolve: Trying to send 9222 tasks to WorldPop...
 
 
 
 
 
 
-# install.packages("stars")
-# library("stars")
 
 
-lcm_pop_data_rcl_stars <- read_stars(lcm_pop_data_rcl)
+
+# Convert from multilinestring to polygon
+lcm_pop_data_rcl_stars_sf_polygon_lines_polygon <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines, "POLYGON")
 
 
-test <- st_contour(lcm_pop_data_rcl, contour_lines = FALSE, breaks = 1:6)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+## PRE-st_dissolve: Trying to send 16487 tasks...
+## POST-st_dissolve: Trying to send 9222 tasks...
+
+
+
 
 
 ```
-
 
 

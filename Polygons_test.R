@@ -8,7 +8,7 @@ View(lcm_df)
 lcm_df$layer = NULL
 View(lcm_df)
 
-# Create reaster
+# Create raster
 lcm_raster <- rasterFromXYZ(lcm_df)
 plot(lcm_raster)
 
@@ -22,6 +22,7 @@ rcl_matrix <- c(0, 30, 1, # 30 minutes
 )
 
 rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+# Check
 View(rcl_matrix)
 
 # Reclassify 'lcm_raster' with 'rcl_matrix' 
@@ -37,7 +38,7 @@ View(lcm_rcl_pop_data_df)
 
 ##### Try to generate polygon(s)
 
-##### 1.
+##### 1 - *does not work* 
 # install.packages("FRK")
 library(FRK)
 
@@ -53,7 +54,7 @@ lcm_rcl_pop_data_polygons
 
 ## Save as shapefile
 
-# library(rgdal)
+library(rgdal)
 writeOGR(lcm_rcl_pop_data_polygons, 
          dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
          layer = 'lcm_rcl_polygons', 
@@ -62,7 +63,7 @@ writeOGR(lcm_rcl_pop_data_polygons,
 
 
 
-##### 2: stars package
+##### 2: stars package - *working* ???
 lcm_pop_data_rcl
 plot(lcm_pop_data_rcl)
 
@@ -86,7 +87,9 @@ lcm_pop_data_rcl_stars_sf_polygon
 
 
 # Aggregate 
-lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon, by = lcm_pop_data_rcl_stars_sf_polygon)
+lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon, by = lcm_rcl_pop_data_df, FUN = mins)
+
+
 
 
 
