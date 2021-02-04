@@ -900,16 +900,18 @@ library(stars)
 lcm_pop_data_rcl_stars <- st_as_stars(lcm_pop_data_rcl)
 lcm_pop_data_rcl_stars
 # stars object
+plot(lcm_pop_data_rcl_stars)
 
 # contour to boundary lines
-lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE, breaks = 1:6)
+lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE)
 
 # Check
 plot(lcm_pop_data_rcl_stars_sf)
 lcm_pop_data_rcl_stars_sf
 # geometry type: linestring
+# saved and attempted to submit to WorldPop but still submitted 16487 tasks...
 
-# Convert from linestring to polygon
+# Convert from linestring to polygon *doesn't seem to work* ???
 lcm_pop_data_rcl_stars_sf_polygon <- st_cast(lcm_pop_data_rcl_stars_sf, "POLYGON")
 
 # Check
@@ -921,7 +923,7 @@ lcm_pop_data_rcl_stars_sf_polygon
 
 
 # Aggregate ??? *cannot get to work*
-# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon)
+# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon, by = "mins", FUN = "mean")
 # Took 30+ minutes so canceled
 
 
@@ -947,7 +949,7 @@ lcm_pop_data_rcl_stars_sf_polygon
 
 
 
-# Try to dissolve using 'rmapshaper' package ??? *cannot get to work*
+# dissolve using 'rmapshaper' package ??? *cannot get to work*
 # install.packages("rmapshaper")
 # library(rmapshaper)
 
@@ -955,8 +957,9 @@ lcm_pop_data_rcl_stars_sf_polygon
 # lcm_pop_data_rcl_stars_sf_polygon_dissolve_test <- ms_dissolve(lcm_pop_data_rcl_stars_sf_polygon)
 # lcm_pop_data_rcl_stars_sf_polygon_dissolve_test
 # geometry type:multipolygon?
+# saved as .shp but could not submit to WorldPop as not POLYGON...
 
-# use 'st_cast' again to convet from multipolygon to polygon
+# use 'st_cast' again to convert from multipolygon to polygon
 # lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test, "POLYGON")
 # lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon
 # geometry type: POLYGON
