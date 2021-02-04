@@ -411,13 +411,6 @@ ggplot()+geom_raster(data=thirty_min, aes(x = x, y = y, fill = cut(mins, c(0,30,
     geom_sf(data=healthfac, size=2, colour="red")+
     guides(fill=guide_legend(title="Time (mins)"))
 
-
-
-
-##### Create polygon from data.frame ???
-
-
-
 # Create raster
 thirty_min_raster <- rasterFromXYZ(thirty_min)
 
@@ -863,7 +856,10 @@ lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
 View(lcm_rcl_pop_data_df)
 
 
+
 ##### Try to generate polygon(s)
+
+
 
 ##### Option_1: 'FKR' package: Bad; requires subsetting dataframe and cannot save as polygon .shp
 # install.packages("FRK")
@@ -880,7 +876,6 @@ lcm_rcl_pop_data_polygons
 ## Can this be saved as polygon (.shp) and uploaded to WorldPop?
 
 ## Save as shapefile
-
 library(rgdal)
 writeOGR(lcm_rcl_pop_data_polygons, 
          dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
@@ -890,7 +885,7 @@ writeOGR(lcm_rcl_pop_data_polygons,
 
 
 
-##### 2: stars package - *working* ???
+##### Option_2: stars package
 lcm_pop_data_rcl
 plot(lcm_pop_data_rcl)
 
@@ -911,20 +906,22 @@ lcm_pop_data_rcl_stars_sf
 # geometry type: linestring
 # saved and attempted to submit to WorldPop but still submitted 16487 tasks...
 
-# Convert from linestring to polygon *doesn't seem to work* ???
+# Convert from linestring to polygon 
 lcm_pop_data_rcl_stars_sf_polygon <- st_cast(lcm_pop_data_rcl_stars_sf, "POLYGON")
 
 # Check
 plot(lcm_pop_data_rcl_stars_sf_polygon)
 lcm_pop_data_rcl_stars_sf_polygon
 # geometry type: POLYGON
-
+# *doesn't seem to work*: seems irregular when checking plot...
 
 
 
 # Aggregate ??? *cannot get to work*
 # lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon, by = "mins", FUN = "mean")
 # Took 30+ minutes so canceled
+
+
 
 
 
@@ -989,10 +986,6 @@ wpCPRPopulation (year=2020,
 
 ## PRE-st_dissolve: Trying to send 16487 tasks...
 ## POST-st_dissolve: Trying to send 9222 tasks...
-
-
-
-
 
 
 
