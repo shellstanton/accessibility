@@ -919,20 +919,35 @@ lcm_pop_data_rcl_stars_sf_polygon
 
 
 
-# Aggregate ???
+
+# Aggregate ??? *cannot get to work*
 # lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon)
 # Took 30+ minutes so canceled
 
 
 
-# ms_lines ???
+
+# ms_lines ??? *cannot get to work*
 # lcm_pop_data_rcl_stars_sf_polygon_lines <- ms_lines(lcm_pop_data_rcl_stars_sf_polygon)
 # lcm_pop_data_rcl_stars_sf_polygon_lines
-# multilinestring
+# geometry type: multilinestring
+
+# Convert to linestring
+# lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines, "LINESTRING")
+# lcm_pop_data_rcl_stars_sf_polygon_lines_cast
+# geometry type: linestring
+
+# Convert to polygon
+# lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines_cast, "POLYGON")
+# lcm_pop_data_rcl_stars_sf_polygon_lines_cast
+# Error: 'plygons require at least 4 points'
 
 
 
-# Try to dissolve using 'rmapshaper' package ???
+
+
+
+# Try to dissolve using 'rmapshaper' package ??? *cannot get to work*
 # install.packages("rmapshaper")
 # library(rmapshaper)
 
@@ -956,21 +971,6 @@ st_write(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon,
          driver = "ESRI Shapefile", 
          overwrite  = TRUE)
 
-## POST-st_dissolve: Trying to send 9222 tasks to WorldPop...
-
-
-
-
-
-
-
-
-
-# Convert from multilinestring to polygon
-lcm_pop_data_rcl_stars_sf_polygon_lines_polygon <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines, "POLYGON")
-
-
-
 ## Submit to WorldPop
 # load package
 library(wpCPR)
@@ -986,6 +986,10 @@ wpCPRPopulation (year=2020,
 
 ## PRE-st_dissolve: Trying to send 16487 tasks...
 ## POST-st_dissolve: Trying to send 9222 tasks...
+
+
+
+
 
 
 
