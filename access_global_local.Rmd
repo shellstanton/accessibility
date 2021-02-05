@@ -1058,7 +1058,7 @@ wpCPRPopulation (year=2020,
 
 
 
-### Option_6: Reclassify 'leastcost_motor' to six categories, isolate each category, transform to 'stars' object, 
+### Option_6: Aggregate 'lcm_raster' to WorldPop resolution, reclassify with 'rcl_matrix', reclassify to just keep group 1 (or whichever), make a stars object, transform to polygon, simplify and/or dissolve polygon and submit to WorldPop. 
 ```{r}
 
 ##### Reclassify 'leastcost_motor' and extract from 'pop_data'
@@ -1120,7 +1120,7 @@ agg_test_reclass
 
 
 ## Make a new layer which is the whole raster, then reclassify to keep group 1
-group_1 <- lcm_pop_data_rcl
+group_1 <- agg_test_reclass
 
 # Make other categories NA
 group_1 <- reclassify(group_1, c(1,6,NA))
@@ -1146,15 +1146,49 @@ group_1_poly_simp_poly <- st_cast(group_1_poly_simp, "POLYGON")
 group_1_poly_simp_dis <- ms_dissolve(group_1_poly_simp)
 group_1_poly_simp_dis_poly <- st_cast(group_1_poly_simp_dis, "POLYGON")
 
+group_1_poly_simp_poly
+group_1_poly_simp_dis_poly
 
 
+# Save both as polygons
+st_write(group_1_poly_simp_poly,
+         dsn = "group_1_poly_simp_poly", 
+         layer = "group_1_poly_simp_poly", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+st_write(group_1_poly_simp_dis_poly,
+         dsn = "group_1_poly_simp_dis_poly", 
+         layer = "group_1_poly_simp_dis_poly", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./group_1_poly_simp_poly/group_1_poly_simp_poly.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+## Error: "Unsupported Geometry:  This operation supports only Polygons"
 
 
 ```
 
 
 
+### Option_7: Aggregate 'lcm_raster' to WorldPop resolution, reclassify with 'rcl_matrix', reclassify to just keep group 1 (or whichever), make a stars object, transform to polygon, simplify and/or dissolve polygon and submit to WorldPop *via wopr package*
+```{r}
 
+
+
+```
 
 
 
