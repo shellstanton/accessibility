@@ -716,6 +716,9 @@ pop_data
 
 res(pop_data)
 # 0.0008333333 0.0008333333
+res_pop_data <- res(pop_data)
+prod(res_pop_data)
+# 6.944444e-07
 
 # Check raster resampling to ('leastcost_motor')
 leastcost_motor
@@ -818,7 +821,7 @@ print(lcm_rcl_zone_df)
 ```
 
 
-### Option_5: Use 'stars' package to generate polygon(s) to save as .shp and submit to WorldPop 
+### Option_5: Generate polygon(s) to save as .shp and submit to WorldPop 
 ```{r}
 
 ##### Reclassify 'leastcost_motor' and extract from 'pop_data'
@@ -859,18 +862,16 @@ View(lcm_rcl_pop_data_df)
 
 ##### Try to generate polygon(s)
 
-
-
 ##### Option_1: 'FKR' package: Bad; requires subsetting dataframe and cannot save as polygon .shp
 # install.packages("FRK")
-library(FRK)
+# library(FRK)
 
 # Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
-lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
+# lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
 
-plot(lcm_rcl_pop_data_polygons)
+# plot(lcm_rcl_pop_data_polygons)
 
-lcm_rcl_pop_data_polygons
+# lcm_rcl_pop_data_polygons
 # spatialpolygons
 
 ## Can this be saved as polygon (.shp) and uploaded to WorldPop?
@@ -897,6 +898,70 @@ lcm_pop_data_rcl_stars
 # stars object
 plot(lcm_pop_data_rcl_stars)
 
+# convert stars object to sf 
+lcm_pop_data_rcl_stars_test <- st_as_sf(lcm_pop_data_rcl_stars,
+                                        as_points = FALSE,
+                                        merge = TRUE)
+
+# Check
+# plot(lcm_pop_data_rcl_stars_test)
+lcm_pop_data_rcl_stars_test
+# geometry type: POLYGON
+
+# Save as polygon
+st_write(lcm_pop_data_rcl_stars_test,
+         dsn = "time_boundary_polygon", 
+         layer = "time_boundary_polygon", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+## Trying to send 22971 tasks...
+
+
+# dissolve using 'rmapshaper' package ??? *cannot get to work*
+# install.packages("rmapshaper")
+library(rmapshaper)
+
+# Dissolve using 'ms_dissolve'
+lcm_pop_data_rcl_stars_test_dissolve <- ms_dissolve(lcm_pop_data_rcl_stars_test)
+lcm_pop_data_rcl_stars_test_dissolve
+# geometry type: POLYGON
+
+# Save as polygon
+st_write(lcm_pop_data_rcl_stars_test_dissolve,
+         dsn = "time_boundary_polygon", 
+         layer = "time_boundary_polygon", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+# Error: Request failed :: Invalid Geometry Error. The GeoJSON contains invalid geometries: Self-intersection[33.1998464 -11.2301089] Please contact WorldPop. Reference task ID is 1a8843fc-6f92-5e8d-8961-7fd8d62c4ea7
+
 # contour to boundary lines
 lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE)
 
@@ -917,8 +982,9 @@ lcm_pop_data_rcl_stars_sf_polygon
 
 
 
+
 # Aggregate ??? *cannot get to work*
-# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon, by = "mins", FUN = "mean")
+# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon)
 # Took 30+ minutes so canceled
 
 
@@ -988,9 +1054,108 @@ wpCPRPopulation (year=2020,
 ## POST-st_dissolve: Trying to send 9222 tasks...
 
 
+```
+
+
+
+### Option_6: Reclassify 'leastcost_motor' to six categories, isolate each category, transform to 'stars' object, 
+```{r}
+
+##### Reclassify 'leastcost_motor' and extract from 'pop_data'
+
+# Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
+View(lcm_df)
+lcm_df$layer = NULL
+View(lcm_df)
+
+# Create raster
+lcm_raster <- rasterFromXYZ(lcm_df)
+plot(lcm_raster)
+
+
+### Aggregate 'lcm_raster' to same resolution as WorldPop raster?
+
+# Divide WorldPop raster resolution by 'leastcost_motor' resolution to give multiplication factor
+res(pop_data)
+# 0.0008333333 0.0008333333
+pop_data_res <- res(pop_data)
+
+res(lcm_raster)
+# 0.0002694946 0.0002694946
+lcm_res <- res(lcm_raster)
+
+# Division
+multiplication_factor <- pop_data_res / lcm_res
+multiplication_factor
+# 3.092208 3.092208
+
+## Aggregate 'lcm_raster' to same resolution as WorldPop raster
+agg_test <- aggregate(lcm_raster, fact = multiplication_factor)
+# Check
+plot(agg_test)
+res(agg_test)
+# 0..0008084838 0.0008084838 ???
+
+# Check as data.frame
+agg_test_df <- as.data.frame(agg_test, xy = TRUE)
+View(agg_test_df)
+
+# Create matrix
+rcl_matrix <- c(0, 30, 1, # 30 minutes
+                30, 60, 2, # 1 hour
+                60, 180, 3, # 3 hours
+                180, 360, 4, # 6 hours 
+                360, 720, 5, # 12 hours
+                720, 100000, 6 # 12+ hours
+)
+
+rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+# Check
+View(rcl_matrix)
+
+# Reclassify 'agg_test' with 'rcl_matrix' 
+agg_test_reclass <- reclassify(agg_test, rcl_matrix, include.lowest=TRUE)
+agg_test_reclass
+
+
+
+## Make a new layer which is the whole raster, then reclassify to keep group 1
+group_1 <- lcm_pop_data_rcl
+
+# Make other categories NA
+group_1 <- reclassify(group_1, c(1,6,NA))
+
+# make this a stars object
+group_1_stars <- st_as_stars(group_1)
+plot(group_1_stars)
+
+# Transform to polygon
+group_1_poly <- st_as_sf(group_1_stars, merge = TRUE, long = FALSE)
+
+group_1_poly <- st_make_valid(group_1_poly)
+
+group_1_poly_combine <- st_combine(group_1_poly)
+
+# Simplify geometry 
+group_1_poly_simp <- ms_simplify(group_1_poly_combine, explode = TRUE)
+
+# cast back to polygon
+group_1_poly_simp_poly <- st_cast(group_1_poly_simp, "POLYGON")
+
+# Dissolve 'group_1_poly_simp', then transform back to polygon
+group_1_poly_simp_dis <- ms_dissolve(group_1_poly_simp)
+group_1_poly_simp_dis_poly <- st_cast(group_1_poly_simp_dis, "POLYGON")
+
+
 
 
 
 ```
+
+
+
+
+
+
 
 
