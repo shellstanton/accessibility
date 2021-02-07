@@ -859,7 +859,6 @@ lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
 View(lcm_rcl_pop_data_df)
 
 
-
 ##### Try to generate polygon(s)
 
 ##### Option_1: 'FKR' package: Bad; requires subsetting dataframe and cannot save as polygon .shp
@@ -1073,6 +1072,48 @@ lcm_raster <- rasterFromXYZ(lcm_df)
 plot(lcm_raster)
 
 
+## Install 'wpgpDownloadR' package
+# devtools::install_github("wpgp/wpgpDownloadR")
+
+# load package
+library(wpgpDownloadR)
+
+## Download ISO3 dataframe to obtain ISO3 info
+# 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
+ISO3_df <- wpgpListCountries()
+# View(ISO3_df)
+
+# Set country of interest (move to beginning of script within initial setup phase?)
+COI <- "Malawi"
+
+# Ascertain ISO3 of Malawi
+ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
+ISO3
+# MWI
+
+# 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
+# This function could be used to query the name of the dataset which then could be downloaded for a country.
+covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
+
+# Check data and check for covariates of interest
+# View(covariates)
+
+# 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
+wpgpGetCountryDataset(ISO3 = ISO3,
+                      covariate = "ppp_2020",
+                      destDir = "./WorldPop")
+
+## .tif file is ~50 MB
+# Read in .tif file
+pop_data <- "./WorldPop/mwi_ppp_2020.tif"
+pop_data <- raster(pop_data)
+
+# Check
+pop_data
+# plot(pop_data)
+
+
+
 ### Aggregate 'lcm_raster' to same resolution as WorldPop raster?
 
 # Divide WorldPop raster resolution by 'leastcost_motor' resolution to give multiplication factor
@@ -1099,6 +1140,8 @@ res(agg_test)
 # Check as data.frame
 agg_test_df <- as.data.frame(agg_test, xy = TRUE)
 View(agg_test_df)
+
+## Reclassify 'agg_test_df'
 
 # Create matrix
 rcl_matrix <- c(0, 30, 1, # 30 minutes
@@ -1137,6 +1180,7 @@ group_1_poly <- st_make_valid(group_1_poly)
 group_1_poly_combine <- st_combine(group_1_poly)
 
 # Simplify geometry 
+library(rmapshaper)
 group_1_poly_simp <- ms_simplify(group_1_poly_combine, explode = TRUE)
 
 # cast back to polygon
@@ -1146,6 +1190,7 @@ group_1_poly_simp_poly <- st_cast(group_1_poly_simp, "POLYGON")
 group_1_poly_simp_dis <- ms_dissolve(group_1_poly_simp)
 group_1_poly_simp_dis_poly <- st_cast(group_1_poly_simp_dis, "POLYGON")
 
+# Check polygons
 group_1_poly_simp_poly
 group_1_poly_simp_dis_poly
 
@@ -1185,6 +1230,59 @@ wpCPRPopulation (year=2020,
 
 ### Option_7: Aggregate 'lcm_raster' to WorldPop resolution, reclassify with 'rcl_matrix', reclassify to just keep group 1 (or whichever), make a stars object, transform to polygon, simplify and/or dissolve polygon and submit to WorldPop *via wopr package*
 ```{r}
+
+# 'wopr' is an R package that provides API access to the WorldPop Open Population Repository. This gives users the ability to:
+
+# Download WorldPop population data sets directly from the R console,
+# Submit spatial queries (points or polygons) to the WorldPop server to retrieve population estimates within user-defined geographic areas,
+# Get estimates of population sizes for specific demographic groups (i.e. age and sex), and
+# Get probabilistic estimates of uncertainty for all population estimates.
+# Run the woprVision web application locally from the R console.
+
+
+# Install 'wopr'
+devtools::install_github('wpgp/wopr')
+library(wopr)
+
+# Check polygons
+group_1_poly_simp_poly
+group_1_poly_simp_dis_poly
+
+
+
+
+pop_test <- woprize(features = group_1_poly_simp_dis_poly, 
+                    country=ISO3, 
+                    version='1.2',
+                    confidence=0.95,
+                    tails=2,
+                    abovethresh=2e4,
+                    belowthresh=1e4
+                    )
+
+# Error: Error in 1:nrow(features) : argument of length 0
+
+
+
+## Try with 'lcm_pop_data_rcl_stars_test' ??
+pop_test <- woprize(features = lcm_pop_data_rcl_stars_test, 
+                    country=ISO3, 
+                    version='1.2',
+                    confidence=0.95,
+                    tails=2,
+                    abovethresh=2e4,
+                    belowthresh=1e4
+                    )
+# Error: no CRS...
+
+# Set CRS
+crs(leastcost_motor)
+# +proj=longlat +datum=WGS84 +no_defs 
+lcm_crs <- crs(leastcost_motor)
+lcm_crs
+
+crs(lcm_pop_data_rcl_stars_test) <- crs(lcm_crs)
+
 
 
 
