@@ -698,7 +698,7 @@ ISO3
 covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
 
 # Check data and check for covariates of interest
-# View(covariates)
+View(covariates)
 
 # 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
 wpgpGetCountryDataset(ISO3 = ISO3,
@@ -889,6 +889,17 @@ writeOGR(lcm_rcl_pop_data_polygons,
 lcm_pop_data_rcl
 plot(lcm_pop_data_rcl)
 
+
+# Set CRS
+crs(leastcost_motor)
+# +proj=longlat +datum=WGS84 +no_defs 
+lcm_crs <- crs(leastcost_motor)
+lcm_crs
+
+projection(lcm_pop_data_rcl) <- lcm_crs
+
+
+
 library(stars)
 
 # Convert 'lcm_pop_data_rcl' from rasterlayer to 'stars' object
@@ -906,6 +917,7 @@ lcm_pop_data_rcl_stars_test <- st_as_sf(lcm_pop_data_rcl_stars,
 # plot(lcm_pop_data_rcl_stars_test)
 lcm_pop_data_rcl_stars_test
 # geometry type: POLYGON
+# CRS has been set
 
 # Save as polygon
 st_write(lcm_pop_data_rcl_stars_test,
@@ -1069,7 +1081,19 @@ View(lcm_df)
 
 # Create raster
 lcm_raster <- rasterFromXYZ(lcm_df)
+lcm_raster
 plot(lcm_raster)
+
+
+# Set CRS
+crs(leastcost_motor)
+# +proj=longlat +datum=WGS84 +no_defs 
+lcm_crs <- crs(leastcost_motor)
+lcm_crs
+
+projection(lcm_raster) <- lcm_crs
+lcm_raster
+# CRS set
 
 
 ## Install 'wpgpDownloadR' package
@@ -1111,6 +1135,8 @@ pop_data <- raster(pop_data)
 # Check
 pop_data
 # plot(pop_data)
+
+
 
 
 
@@ -1160,8 +1186,6 @@ View(rcl_matrix)
 agg_test_reclass <- reclassify(agg_test, rcl_matrix, include.lowest=TRUE)
 agg_test_reclass
 
-
-
 ## Make a new layer which is the whole raster, then reclassify to keep group 1
 group_1 <- agg_test_reclass
 
@@ -1179,7 +1203,7 @@ group_1_poly <- st_make_valid(group_1_poly)
 
 group_1_poly_combine <- st_combine(group_1_poly)
 
-# Simplify geometry 
+## Simplify geometry 
 library(rmapshaper)
 group_1_poly_simp <- ms_simplify(group_1_poly_combine, explode = TRUE)
 
@@ -1193,7 +1217,8 @@ group_1_poly_simp_dis_poly <- st_cast(group_1_poly_simp_dis, "POLYGON")
 # Check polygons
 group_1_poly_simp_poly
 group_1_poly_simp_dis_poly
-
+# Both POLYGON
+# Both have CRS set
 
 # Save both as polygons
 st_write(group_1_poly_simp_poly,
@@ -1246,42 +1271,60 @@ library(wopr)
 
 # Check polygons
 group_1_poly_simp_poly
+plot(group_1_poly_simp_poly)
+
 group_1_poly_simp_dis_poly
+plot(group_1_poly_simp_dis_poly)
+# Both POLYGON
+# Both have CRS set
 
 
 
+WP_catalogue <- getCatalogue(spatial_query=T)
+View(WP_catalogue)
 
-pop_test <- woprize(features = group_1_poly_simp_dis_poly, 
-                    country=ISO3, 
-                    version='1.2',
-                    confidence=0.95,
-                    tails=2,
-                    abovethresh=2e4,
-                    belowthresh=1e4
-                    )
+
+pop_test_multi_polygon <- woprize(features = group_1_poly_simp_poly, 
+                                  country = ISO3, 
+                                  version = '1.2',
+                                  agesex_select = FALSE,
+                                  confidence = 0.95,
+                                  tails = 2,
+                                  abovethresh = 2e4,
+                                  belowthresh = 1e4
+                                  )
 
 # Error: Error in 1:nrow(features) : argument of length 0
 
 
 
+
+
+
+
+pop_test_single_polygon <- getPop(feature= group_1_poly_simp_poly[1,], 
+                           country = 'ISO3', 
+                           version = 'v1.2')
+
+summaryPop(N, confidence=0.95, tails=2, abovethresh=1e2, belowthresh=50)
+
+
+
+
+
+
 ## Try with 'lcm_pop_data_rcl_stars_test' ??
-pop_test <- woprize(features = lcm_pop_data_rcl_stars_test, 
-                    country=ISO3, 
-                    version='1.2',
-                    confidence=0.95,
-                    tails=2,
-                    abovethresh=2e4,
-                    belowthresh=1e4
-                    )
-# Error: no CRS...
+pop_table_test <- woprize(features = group_1_poly_simp_dis_poly, 
+                          country=ISO3, 
+                          version='1.2',
+                          confidence=0.95,
+                          tails=2,
+                          abovethresh=2e4,
+                          belowthresh=1e4
+                          )
+# Error: Exceeds 1000 tasks
 
-# Set CRS
-crs(leastcost_motor)
-# +proj=longlat +datum=WGS84 +no_defs 
-lcm_crs <- crs(leastcost_motor)
-lcm_crs
 
-crs(lcm_pop_data_rcl_stars_test) <- crs(lcm_crs)
 
 
 
