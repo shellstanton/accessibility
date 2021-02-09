@@ -8,3 +8,10 @@
 .Rproj.user/B0EF3A6E/sources/prop/C29D8DA5
 .Rproj.user/shared/notebooks/E6A31068-access_global_local/1/s/csetup_chunk/000002.csv
 .Rproj.user
+time_boundary_polygon/time_boundary_polygon.dbf
+time_boundary_polygon/time_boundary_polygon.shp
+time_boundary_polygon/time_boundary_polygon.shx
+*.dbf
+*.shp
+*.shx
+.DS_Store

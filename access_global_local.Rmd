@@ -45,6 +45,9 @@ if(length(new.packages)) install.packages(new.packages)
 
 lapply(list.of.packages, library, character.only = TRUE)
 
+# Return list of all packages being used:
+# NCmisc::list.functions.in.file()
+
 ```
 
 
@@ -118,7 +121,10 @@ Then make this into a polygon by using xy combinations for each corner of the ar
 
 ```{r, eval=F}
 
-aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax), c(bbxmax, bbymax), c(bbxmax, bbymin), c(bbxmin, bbymin)))
+aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax), 
+                                       c(bbxmax, bbymax),
+                                       c(bbxmax, bbymin), 
+                                       c(bbxmin, bbymin)))
 
 ```
 
@@ -344,7 +350,8 @@ lcm_df <- as.data.frame(leastcost_motor, xy = TRUE)
 
 lcm_df$mins <- lcm_df$layer/60
 
-ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
+ggplot()+
+    geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
     scale_fill_brewer(palette = "YlGnBu")+
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
     geom_sf(data=healthfac, size=2, colour="red")+
@@ -360,10 +367,276 @@ ggplot()+geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,1
 
 Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
 
-*Landsat data is at 30m x 30m resolution, whereas some of the dataset's Michelle's linked to are at a larger spatial resolution. For some of the extraction functions, the rasters will need to be at the same spatial resolution. Some resampling would be useful here.
-*You will need to check projections of the different spatial datasets to ensure they align (extract and crop functions won't work if the data is in different spatial resolutions).
-*You'll have to determine some sensible thresholds to quantify the population by (i.e. within 30 minutes, 1hr, etc... travel of a facility).
-*You may want to further categorise the population as "at-risk" or "not at-risk" of infection. I think we should get the ball rolling with just one population surface for the moment and this is something we can code in later down the line.
+### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (*working*)
+
+```{r WorldPop_packages}
+
+## Download, install and load wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
+
+# Requires installation of "devtools" package
+# install.packages("devtools")
+
+# Download/install 'wpgpDownloadR' package
+# devtools::install_github("wpgp/wpgpDownloadR")
+
+# load 'wpgpDownloadR' package
+library(wpgpDownloadR)
+
+```
+
+
+```{r ISO3_country_code}
+
+## Download ISO3 (country code) dataframe to obtain ISO3 info
+
+# The 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
+ISO3_df <- wpgpListCountries()
+# Check
+# View(ISO3_df)
+
+# Set country of interest (move to beginning of script within initial setup phase?)
+COI <- "Malawi"
+
+# Ascertain ISO3 of Malawi
+ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
+ISO3
+# MWI
+
+```
+
+
+```{r download_population_data_and_create_raster}
+
+## The 'wpgpListCountryDatasets' function will return a dataframe of available covariates from WorldPop FTP for a country of interest
+
+# Download dataframe of avaliable covariates for country of interest
+covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
+
+# Check data and check for covariates of interest
+View(covariates)
+# "ppp_2020": Estimated total number of people per grid-cell 2020
+
+# Download  dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name)
+wpgpGetCountryDataset(ISO3 = ISO3,
+                      covariate = "ppp_2020", # This needs to be chosen?
+                      destDir = "./WorldPop")
+
+# Note: Downloaded .tif is ~50 MB
+
+# Read in .tif file
+pop_data <- "./WorldPop/mwi_ppp_2020.tif"
+# Create raster
+pop_data <- raster(pop_data)
+
+# Check
+pop_data
+
+```
+
+
+```{r resample_pop_data}
+
+## Resample 'pop_data' to match resolution of 'leastcost_motor'
+
+# Determine 'pop_data' resolution 
+res(pop_data)
+# 0.0008333333 0.0008333333
+
+# Determine 'leastcost_motor' resolution
+leastcost_motor
+res(leastcost_motor)
+# 0.0002694946 0.0002694946
+
+## Use 'resample' function to:
+# * Resample 'pop_data' to match resolution of 'leastcost_motor'
+# * Clip 'pop_data' to extent of 'leastcost_motor'
+pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
+
+# Check
+res(pop_data) == res(leastcost_motor)
+# True
+extent(pop_data) == extent(leastcost_motor)
+# True
+
+# Check CRS
+crs(pop_data)
+# WGS84
+
+# Visualise raster
+# plot(pop_data)
+
+```
+
+
+##### *Is this chunk needed?*
+```{r merge_and_write_raster}
+
+##  Merge 'pop_data' and 'leastcost_motor'
+
+# Merge
+leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
+
+# Check
+leastcost_motor_pop
+
+# Check CRS
+crs(leastcost_motor_pop)
+# WGS84
+
+# Save as raster
+writeRaster(leastcost_motor_pop,
+            "./WorldPop/pop_data",
+            format = "GTiff", 
+            overwrite=TRUE)
+
+```
+
+
+```{r reclassify}
+
+## Reclassify 'leastcost_motor' to time-boundary categories
+
+## Create rasterlayer from 'lcm_df' dataframe
+# 'rasterfromXYZ' function works only with three columns, so remove 'layer' column from 'lcm_df'
+lcm_df$layer = NULL
+# Check
+# View(lcm_df)
+
+# Create reaster from 'lcm_df dataframe
+lcm_raster <- rasterFromXYZ(lcm_df)
+# Check
+# plot(lcm_raster)
+
+
+## Create matrix of time-boundary categories (to resample 'lcm_raster')
+## Categories: 
+# * 0 - 30 minutes
+# * 30 minutes - 1 hour
+# * 1 hour - 3 hours
+# * 3 hours - 6 hours
+# * 6 hours - 12 hours
+# * 12+ hours
+rcl_matrix <- c(0, 30, 1, # 30 minutes
+                30, 60, 2, # 1 hour
+                60, 180, 3, # 3 hours
+                180, 360, 4, # 6 hours 
+                360, 720, 5, # 12 hours
+                720, 100000, 6 # 12+ hours
+)
+
+rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+# Check
+# View(rcl_matrix)
+
+
+## Reclassify 'lcm_raster' using 'rcl_matrix' 
+lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
+# Check
+lcm_pop_data_rcl
+# Rasterlayer
+# CRS not assigned
+
+## Assign CRS to that of 'leastcost_motor' (WGS84)
+crs(leastcost_motor)
+# +proj=longlat +datum=WGS84 +no_defs 
+lcm_crs <- crs(leastcost_motor)
+# Check
+# lcm_crs
+
+# Assign CRS
+projection(lcm_pop_data_rcl) <- lcm_crs
+# Check
+lcm_pop_data_rcl
+# CRS set (WGS84)
+
+# Check
+# plot(lcm_pop_data_rcl)
+
+```
+
+
+```{r }
+
+
+### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours ans so canceled
+
+# Check as data.frame
+lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
+View(lcm_rcl_pop_data_df)
+
+# Zonal stuff
+lcm_rcl_zone <- zonal(pop_data, lcm_pop_data_rcl, fun = sum)
+
+# View
+lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
+View(lcm_rcl_zone_df)
+
+# Rename columns and add 'Population' column
+colnames(lcm_rcl_zone_df)
+names(lcm_rcl_zone_df)[1] <- "Zone"
+names(lcm_rcl_zone_df)[2] <- "Sum"
+View(lcm_rcl_zone_df)
+
+# Add population column
+lcm_rcl_zone_df$Population <-
+  
+  c(sum(lcm_rcl_zone_df$Sum[1]),
+    sum(lcm_rcl_zone_df$Sum[1:2]),
+    sum(lcm_rcl_zone_df$Sum[1:3]),
+    sum(lcm_rcl_zone_df$Sum[1:4]),
+    sum(lcm_rcl_zone_df$Sum[1:5]),
+    sum(lcm_rcl_zone_df$Sum[1:6]))
+
+# Check
+View(lcm_rcl_zone_df)
+print(lcm_rcl_zone_df)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -668,157 +941,7 @@ sixty_min_pop
 ### Working but generting polygon for time-boundaries takes a long time (30 min ~5 mins to generate, 60 min ~20 mins to generate...)
 
 
-### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (*working*)
-```{r reclassify_and_extract, include=FALSE}
-
-##### Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
-#install.packages("devtools")
-
-## Install 'wpgpDownloadR' package
-# devtools::install_github("wpgp/wpgpDownloadR")
-
-# load package
-library(wpgpDownloadR)
-
-## Download ISO3 dataframe to obtain ISO3 info
-# 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
-ISO3_df <- wpgpListCountries()
-# View(ISO3_df)
-
-# Set country of interest (move to beginning of script within initial setup phase?)
-COI <- "Malawi"
-
-# Ascertain ISO3 of Malawi
-ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
-ISO3
-# MWI
-
-# 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
-# This function could be used to query the name of the dataset which then could be downloaded for a country.
-covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
-
-# Check data and check for covariates of interest
-View(covariates)
-
-# 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
-wpgpGetCountryDataset(ISO3 = ISO3,
-                      covariate = "ppp_2020",
-                      destDir = "./WorldPop")
-
-## .tif file is ~50 MB
-# Read in .tif file
-pop_data <- "./WorldPop/mwi_ppp_2020.tif"
-pop_data <- raster(pop_data)
-
-# Check
-pop_data
-# plot(pop_data)
-
-res(pop_data)
-# 0.0008333333 0.0008333333
-res_pop_data <- res(pop_data)
-prod(res_pop_data)
-# 6.944444e-07
-
-# Check raster resampling to ('leastcost_motor')
-leastcost_motor
-res(leastcost_motor)
-# 0.0002694946 0.0002694946
-
-## Need to resample to match resolution
-pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
-
-# Check
-res(pop_data) == res(leastcost_motor)
-# True
-# plot(pop_data)
-
-## Has also clipped raster to match extent of 'leastcost_motor'
-extent(pop_data) == extent(leastcost_motor)
-# True
-crs(pop_data)
-# WGS84
-crs(leastcost_motor)
-# WGS84
-
-## merge the pop_data and the leastcost_motor ???
-leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
-
-leastcost_motor_pop
-
-extent(leastcost_motor_pop) == extent(leastcost_motor)
-# True!
-crs(leastcost_motor_pop)
-# WGS84
-
-# Save raster
-writeRaster(leastcost_motor_pop,
-            "./WorldPop/pop_data",
-            format = "GTiff", 
-            overwrite=TRUE)
-
-
-##### Reclassify 'leastcost_motor' and extract from 'pop_data'
-
-# Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
-View(lcm_df)
-lcm_df$layer = NULL
-View(lcm_df)
-
-# Create reaster
-lcm_raster <- rasterFromXYZ(lcm_df)
-plot(lcm_raster)
-
-# Create matrix
-rcl_matrix <- c(0, 30, 1, # 30 minutes
-                30, 60, 2, # 1 hour
-                60, 180, 3, # 3 hours
-                180, 360, 4, # 6 hours 
-                360, 720, 5, # 12 hours
-                720, 100000, 6 # 12+ hours
-)
-
-rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
-View(rcl_matrix)
-
-# Reclassify 'lcm_raster' with 'rcl_matrix' 
-lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
-lcm_pop_data_rcl
-
-### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours ans so canceled
-
-# Check as data.frame
-lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
-View(lcm_rcl_pop_data_df)
-
-# Zonal stuff
-lcm_rcl_zone <- zonal(pop_data, lcm_pop_data_rcl, fun = sum)
-
-# View
-lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
-View(lcm_rcl_zone_df)
-
-# Rename columns and add 'Population' column
-colnames(lcm_rcl_zone_df)
-names(lcm_rcl_zone_df)[1] <- "Zone"
-names(lcm_rcl_zone_df)[2] <- "Sum"
-View(lcm_rcl_zone_df)
-
-# Add population column
-lcm_rcl_zone_df$Population <-
-  
-  c(sum(lcm_rcl_zone_df$Sum[1]),
-    sum(lcm_rcl_zone_df$Sum[1:2]),
-    sum(lcm_rcl_zone_df$Sum[1:3]),
-    sum(lcm_rcl_zone_df$Sum[1:4]),
-    sum(lcm_rcl_zone_df$Sum[1:5]),
-    sum(lcm_rcl_zone_df$Sum[1:6]))
-
-# Check
-View(lcm_rcl_zone_df)
-print(lcm_rcl_zone_df)
-
-```
+###
 
 
 ### Option_5: Generate polygon(s) to save as .shp and submit to WorldPop 
