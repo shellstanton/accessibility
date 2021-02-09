@@ -360,15 +360,11 @@ ggplot()+
 ```
 
 
-
-
-
 ### MRes_mini_project: Task_7
 
 Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
 
-### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons) (*working*)
-
+### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons)
 ```{r WorldPop_packages}
 
 ## Download, install and load wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
@@ -494,7 +490,7 @@ writeRaster(leastcost_motor_pop,
 
 ```{r reclassify}
 
-## Reclassify 'leastcost_motor' to time-boundary categories
+## Reclassify 'leastcost_motor' to time-boundary categorical zones
 
 ## Create rasterlayer from 'lcm_df' dataframe
 # 'rasterfromXYZ' function works only with three columns, so remove 'layer' column from 'lcm_df'
@@ -502,7 +498,7 @@ lcm_df$layer = NULL
 # Check
 # View(lcm_df)
 
-# Create reaster from 'lcm_df dataframe
+# Create reaster from 'lcm_df' dataframe
 lcm_raster <- rasterFromXYZ(lcm_df)
 # Check
 # plot(lcm_raster)
@@ -529,7 +525,7 @@ rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
 # View(rcl_matrix)
 
 
-## Reclassify 'lcm_raster' using 'rcl_matrix' 
+## Reclassify 'lcm_raster' using 'rcl_matrix'  according to time-boundary categorical zones
 lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
 # Check
 lcm_pop_data_rcl
@@ -552,40 +548,41 @@ lcm_pop_data_rcl
 # Check
 # plot(lcm_pop_data_rcl)
 
+# Check as data.frame
+lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
+# View(lcm_rcl_pop_data_df)
+
 ```
 
 
-```{r }
+```{r determine_population_within_time-boundary_zones}
 
+## Determine population totals within each time-boundary category and summate
 
-### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours ans so canceled
-
-# Check as data.frame
-lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
-View(lcm_rcl_pop_data_df)
-
-# Zonal stuff
+# Determine population totals (within 'pop_data' raster), within time_boundary categorical zones (within 'lcm_pop_data_rcl') using 'zonal' function 
 lcm_rcl_zone <- zonal(pop_data, lcm_pop_data_rcl, fun = sum)
 
-# View
+# Create dataframe
 lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
+
+# Check
 View(lcm_rcl_zone_df)
 
 # Rename columns and add 'Population' column
 colnames(lcm_rcl_zone_df)
 names(lcm_rcl_zone_df)[1] <- "Zone"
-names(lcm_rcl_zone_df)[2] <- "Sum"
+names(lcm_rcl_zone_df)[2] <- "Zone Population"
 View(lcm_rcl_zone_df)
 
 # Add population column
-lcm_rcl_zone_df$Population <-
+lcm_rcl_zone_df$" Total Population" <-
   
-  c(sum(lcm_rcl_zone_df$Sum[1]),
-    sum(lcm_rcl_zone_df$Sum[1:2]),
-    sum(lcm_rcl_zone_df$Sum[1:3]),
-    sum(lcm_rcl_zone_df$Sum[1:4]),
-    sum(lcm_rcl_zone_df$Sum[1:5]),
-    sum(lcm_rcl_zone_df$Sum[1:6]))
+  c(sum(lcm_rcl_zone_df$"Zone Population"[1]),
+    sum(lcm_rcl_zone_df$"Zone Population"[1:2]),
+    sum(lcm_rcl_zone_df$"Zone Population"[1:3]),
+    sum(lcm_rcl_zone_df$"Zone Population"[1:4]),
+    sum(lcm_rcl_zone_df$"Zone Population"[1:5]),
+    sum(lcm_rcl_zone_df$"Zone Population"[1:6]))
 
 # Check
 View(lcm_rcl_zone_df)
@@ -599,46 +596,7 @@ print(lcm_rcl_zone_df)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+----- ### Failed attempts
 
 ### Option_1: Extract time-boundary polygons from 'leastcost_motor' ???
 ```{r isolate_time_boundary_polygons, include=FALSE}
