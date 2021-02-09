@@ -131,6 +131,10 @@ aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax),
 
 Read in the Landsat 8 Tier 1 dataset
 
+*https://rpubs.com/ials2un/getlandsat*
+
+*Worth looking into this - implies we can source NDVI from Landsat 8 directly within R. It would require users to enter their USGS log in details but something to investigate, and associated details can be an input of the Shiny app.*
+
 ```{r, eval=F}
 
 ls8 <- ee$ImageCollection("LANDSAT/LC08/C01/T1_RT_TOA")
@@ -364,10 +368,10 @@ ggplot()+
 
 Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
 
-### Option_4: Download population rasters from WorldPop, extract from population rasters using reclasified time-boundary rasters (rather than polygons)
+Option_4: Download population raster from the WorldPop FTP, determine population within time-boundary zones from population rasters using reclasified time-boundary data (rather than polygons).
 ```{r WorldPop_packages}
 
-## Download, install and load wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
+## Download, install and load wpgpDownloadR: an R Package interface for downloading raster datasets from WorldPop FTP.
 
 # Requires installation of "devtools" package
 # install.packages("devtools")
@@ -381,6 +385,7 @@ library(wpgpDownloadR)
 ```
 
 
+Obtain ISO3 (country code) for country of interest (Malawi).
 ```{r ISO3_country_code}
 
 ## Download ISO3 (country code) dataframe to obtain ISO3 info
@@ -401,20 +406,24 @@ ISO3
 ```
 
 
+Download population data (.tif) for country and covariate of interest (Malawi / entire population in 2020) from the WorldPop FTP and create raster from downloaded data
 ```{r download_population_data_and_create_raster}
 
 ## The 'wpgpListCountryDatasets' function will return a dataframe of available covariates from WorldPop FTP for a country of interest
 
-# Download dataframe of avaliable covariates for country of interest
-covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
+# Download dataset of avaliable covariates for country of interest
+covariates_df <- wpgpListCountryDatasets(ISO3 = ISO3)
 
 # Check data and check for covariates of interest
-View(covariates)
+View(covariates_df)
 # "ppp_2020": Estimated total number of people per grid-cell 2020
+
+# Store chosen covaraite as object
+covariate <- "ppp_2020"
 
 # Download  dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name)
 wpgpGetCountryDataset(ISO3 = ISO3,
-                      covariate = "ppp_2020", # This needs to be chosen?
+                      covariate = covariate, # This needs to be chosen?
                       destDir = "./WorldPop")
 
 # Note: Downloaded .tif is ~50 MB
@@ -426,13 +435,13 @@ pop_data <- raster(pop_data)
 
 # Check
 pop_data
+# CRS assigned: WGS84
 
 ```
 
 
+Resample 'pop_data' raster to match resolution of 'leastcost_motor'.
 ```{r resample_pop_data}
-
-## Resample 'pop_data' to match resolution of 'leastcost_motor'
 
 # Determine 'pop_data' resolution 
 res(pop_data)
@@ -488,9 +497,8 @@ writeRaster(leastcost_motor_pop,
 ```
 
 
+Reclassify 'leastcost_motor' to chosen time-boundary categorical zones.
 ```{r reclassify}
-
-## Reclassify 'leastcost_motor' to time-boundary categorical zones
 
 ## Create rasterlayer from 'lcm_df' dataframe
 # 'rasterfromXYZ' function works only with three columns, so remove 'layer' column from 'lcm_df'
@@ -502,7 +510,6 @@ lcm_df$layer = NULL
 lcm_raster <- rasterFromXYZ(lcm_df)
 # Check
 # plot(lcm_raster)
-
 
 ## Create matrix of time-boundary categories (to resample 'lcm_raster')
 ## Categories: 
@@ -523,7 +530,6 @@ rcl_matrix <- c(0, 30, 1, # 30 minutes
 rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
 # Check
 # View(rcl_matrix)
-
 
 ## Reclassify 'lcm_raster' using 'rcl_matrix'  according to time-boundary categorical zones
 lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
@@ -555,9 +561,8 @@ lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
 ```
 
 
+Determine population within each time-boundary category. Summate the data to give total number of individuals within chosen time-boundary categorical zones and calculate % of total population within chosen time-boundary categorical zones.
 ```{r determine_population_within_time-boundary_zones}
-
-## Determine population totals within each time-boundary category and summate
 
 # Determine population totals (within 'pop_data' raster), within time_boundary categorical zones (within 'lcm_pop_data_rcl') using 'zonal' function 
 lcm_rcl_zone <- zonal(pop_data, lcm_pop_data_rcl, fun = sum)
@@ -568,13 +573,21 @@ lcm_rcl_zone_df <- as.data.frame(lcm_rcl_zone, xy = TRUE)
 # Check
 View(lcm_rcl_zone_df)
 
-# Rename columns and add 'Population' column
+# Rename columns 
 colnames(lcm_rcl_zone_df)
 names(lcm_rcl_zone_df)[1] <- "Zone"
 names(lcm_rcl_zone_df)[2] <- "Zone Population"
 View(lcm_rcl_zone_df)
 
-# Add population column
+# Replace time-boundary zone codes with chosen time-boundary categories
+lcm_rcl_zone_df$Zone <- c("< 30 minutes",
+                          "30 minutes - 1 hour",
+                          "1 hour - 3 hours",
+                          "3 hours - 6 hours",
+                          "6 hours - 12 hours",
+                          "12+ hours")
+
+# Add total population column
 lcm_rcl_zone_df$" Total Population" <-
   
   c(sum(lcm_rcl_zone_df$"Zone Population"[1]),
@@ -583,6 +596,17 @@ lcm_rcl_zone_df$" Total Population" <-
     sum(lcm_rcl_zone_df$"Zone Population"[1:4]),
     sum(lcm_rcl_zone_df$"Zone Population"[1:5]),
     sum(lcm_rcl_zone_df$"Zone Population"[1:6]))
+
+# Add % of total population column
+lcm_rcl_zone_df$"% of Population" <-
+   
+  c(sum(lcm_rcl_zone_df$"Zone Population"[1])   / sum(lcm_rcl_zone_df$"Zone Population"[1:6]) * 100,
+    sum(lcm_rcl_zone_df$"Zone Population"[1:2]) / sum(lcm_rcl_zone_df$"Zone Population"[1:6]) * 100,
+    sum(lcm_rcl_zone_df$"Zone Population"[1:3]) / sum(lcm_rcl_zone_df$"Zone Population"[1:6]) * 100,
+    sum(lcm_rcl_zone_df$"Zone Population"[1:4]) / sum(lcm_rcl_zone_df$"Zone Population"[1:6]) * 100,
+    sum(lcm_rcl_zone_df$"Zone Population"[1:5]) / sum(lcm_rcl_zone_df$"Zone Population"[1:6]) * 100,
+    sum(lcm_rcl_zone_df$"Zone Population"[1:6]) / sum(lcm_rcl_zone_df$"Zone Population"[1:6]) * 100)
+  
 
 # Check
 View(lcm_rcl_zone_df)
@@ -596,7 +620,7 @@ print(lcm_rcl_zone_df)
 
 
 
------ ### Failed attempts
+----- ### Other method attempts 
 
 ### Option_1: Extract time-boundary polygons from 'leastcost_motor' ???
 ```{r isolate_time_boundary_polygons, include=FALSE}
