@@ -15,42 +15,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-### MRes mini project: Task_8
-
-Restructure code so it contains an initial section for user inputs relating to:
-* area of interest
-* road travel speeds
-* NDVI parameters i.e. period of time over which to summarise NDVI plus walking speeds assigned to NDVI intervals
-JL:
-* I envisage that most users won't know the coordinates for the bounding box of their area of interest, but may have a shapefile, or know the name of a district.
-* Would it be useful to allow the option of a data-upload at the start of the script? We can grab the extent from a spatial object. 
-
-```{r setup_JRA, include=FALSE}
-
-# Forumate setup chunk
-
-```
-
-
-
-
-```{r packages, warning=FALSE, message=FALSE, results=FALSE}
-
-## load required packages, and install packages which are potentially missing on client computers
-list.of.packages <- c("sf", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize", "remotes", "rgdal", "stars", "geojsonio")
-
-new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-
-if(length(new.packages)) install.packages(new.packages)
-
-lapply(list.of.packages, library, character.only = TRUE)
-
-# Return list of all packages being used:
-# NCmisc::list.functions.in.file()
-
-```
-
-
 ### Overview
 
 This document aims to allow for fast and reproducible construction of friction surfaces detailing travel time to health facilities.
@@ -64,6 +28,85 @@ The key steps of the below are:
 3. Assigning travel speeds to cells associated with NDVI data, and roads. This will include trawling/gathering information for speeds associated with certain roads (using GPS data? national speed limits?) and walking through different densities of vegetation. 
 4. Combining on-road and off-road data to produce one combined friction surface.
 5. Identifying the location of health facilities to use within a cost-distance analysis using the friction surface.
+
+
+*### MRes mini project: Task_8*
+Restructure code so it contains an initial section for user inputs relating to:
+* area of interest
+* road travel speeds
+* NDVI parameters i.e. period of time over which to summarise NDVI plus walking speeds assigned to NDVI intervals
+JL:
+* I envisage that most users won't know the coordinates for the bounding box of their area of interest, but may have a shapefile, or know the name of a district.
+* Would it be useful to allow the option of a data-upload at the start of the script? We can grab the extent from a spatial object. 
+
+### Setup process
+
+Setup: Packages
+```{r setup_packages}
+
+## load required packages, and install packages which are potentially missing on client computers
+list.of.packages <- c("sf", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize", "remotes", "rgdal", "stars", "geojsonio")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+
+if(length(new.packages)) install.packages(new.packages)
+
+lapply(list.of.packages, library, character.only = TRUE)
+
+```
+
+Setup: Area of interest (aoi)
+```{r setup_area_of_interest}
+
+# * Define max and minimum values for longitude and latitude using coordinate points (WGS84)
+bbxmin <- 33.2
+bbxmax <- 33.8
+bbymin <- -11.29
+bbymax <- -10.73
+# Polygon created within markdown
+
+# OR:
+# * Read in shapefile
+# aoi <- readOGR(dsn = "USER_DIRECTORY", layer = "USER_SHAPEFILE")
+
+# OR:
+# * District name?
+
+```
+
+Setup: Landsat 8 parameters
+```{r setup_landsat8_parameters}
+
+# Read in landsat 8 data
+ls8_data <- "LANDSAT/LC08/C01/T1_RT_TOA"
+
+# Define start and end dates to filter by
+start_date <-  "2018-06-01"
+end_date   <-  "2018-09-30"
+
+```
+
+Setup: NDVI parameters
+```{r setup_NDVI_parameters}
+
+## NDVI parameters
+
+```
+
+Setup: Road travel speeds
+```{r setup_road_travel_speeds}
+
+## Road travel speeds
+
+```
+
+Setup: Population parameters
+```{r setup_population_parameters}
+
+# Set country of interest using British English spelling
+COI <- "Malawi"
+
+```
 
 
 ### NDVI data generation using rgee
@@ -118,7 +161,6 @@ bbymax <- -10.73
 
 
 Then make this into a polygon by using xy combinations for each corner of the area of interest.
-
 ```{r, eval=F}
 
 aoi <- ee$Geometry$Polygon(coords=list(c(bbxmin, bbymax), 
@@ -137,7 +179,7 @@ Read in the Landsat 8 Tier 1 dataset
 
 ```{r, eval=F}
 
-ls8 <- ee$ImageCollection("LANDSAT/LC08/C01/T1_RT_TOA")
+ls8 <- ee$ImageCollection(ls8_data)
 
 ```
 
@@ -148,7 +190,7 @@ Filter the LS8 collection by area & then by collection date
 
 spatialFiltered <- ls8$filterBounds(aoi)
 
-temporalFiltered <- spatialFiltered$filterDate('2018-06-01', '2018-09-30')
+temporalFiltered <- spatialFiltered$filterDate(start_date, end_date)
 
 ```
 
@@ -364,11 +406,11 @@ ggplot()+
 ```
 
 
-### MRes_mini_project: Task_7
+*### MRes_mini_project: Task_7*
 
 Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
 
-Option_4: Download population raster from the WorldPop FTP, determine population within time-boundary zones from population rasters using reclasified time-boundary data (rather than polygons).
+Download population raster from the WorldPop FTP, determine population within time-boundary zones from population rasters using reclasified time-boundary data (rather than polygons).
 ```{r WorldPop_packages}
 
 ## Download, install and load wpgpDownloadR: an R Package interface for downloading raster datasets from WorldPop FTP.
@@ -395,7 +437,7 @@ ISO3_df <- wpgpListCountries()
 # Check
 # View(ISO3_df)
 
-# Set country of interest (move to beginning of script within initial setup phase?)
+# Set country of interest 
 COI <- "Malawi"
 
 # Ascertain ISO3 of Malawi
