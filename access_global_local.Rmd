@@ -35,7 +35,7 @@ Restructure code so it contains an initial section for user inputs relating to:
 * packages
 * area of interest
 * landsat 8 parameters
-* NDVI parameters i.e. period of time over which to summarise NDVI
+* *NDVI parameters i.e. period of time over which to summarise NDVI*
 * travel speeds (walking and road)
 * population data parameters
 * health facility data
@@ -145,16 +145,16 @@ Walking travel speed.
 
 ## Define walking speeds (in Km/h) expected for the following NDVI values:
 
-# NDVI = < 0.35 (impassable)
+# NDVI value = < 0.35 (impassable)
 walk_speed_1 <- 0.1
 
-# NDVI = 0.35 - 0.6
+# NDVI value = 0.35 - 0.6
 walk_speed_2 <- 3.5
 
-# NDVI = 0.6 - 0.7
+# NDVI value = 0.6 - 0.7
 walk_speed_3 <- 2.48
 
-# NDVI = > 0.7
+# NDVI value = > 0.7
 walk_speed_4 <- 1.49
 
 # These can be changed according to expected changes in walking speeds, i.e., during the wet season, etc.
@@ -181,7 +181,6 @@ minor_road_speed <- 20
 * Set country of interest (coi) using British English spelling
 * Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
 * Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
-*Can this be done as function?*
 ```{r setup_population_parameters}
 
 # * Set country of interest (coi) using British English spelling
@@ -192,22 +191,21 @@ population_data <-
   
   function(coi){
     
-    # Obtain ISO3 country code for country of interest (coi)
-    # The 'wpgpListCountries' function will return a dataframe with all ISO3 country codes available on WorldPop FTP server
+    # Obtain ISO3 country code for country of interest (coi) using 'wpgpListCountries' function
     ISO3_df <- wpgpListCountries()
   
     # Identify ISO3 country code for country of interest (coi) and store as object
     ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
   
-    # Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
     # Download dataset of available covariates for country of interest
     covariates_df <- wpgpListCountryDatasets(ISO3 = ISO3)
-  
+    
+    # Return dataframe
     return(covariates_df)
   
 }
 
-# View output
+# Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
 View(population_data(coi))
 # "ppp_2020": Estimated total number of people per grid-cell 2020
 
@@ -218,25 +216,17 @@ covariate <- "ppp_2020"
 
 6. Setup: Health facility data
 Add in health facility locations. 
-*Currently reading in the facilities around Vwaza that have rHAT diagnostics, but will edit this to use afrimapr*
+*Currently reading in the facilities around Vwaza that have rHAT diagnostics, potentially edit this to use afrimapr?*
 ```{r setup_health_facility_data}
 
 healthfac <- st_read("./data/healthfacexample.shp")
 
 ```
-
+All setup stages now complete.
 
 
 ### NDVI data generation using rgee
 I keep having issues with the rgee package, so I suggest at some point we split this Rmd file so that we keep the GEE part in one file, and the cost-distance surface generation in another. Users can then either have the option of generating the NDVI in R, or using GEE directly, with the link to the code provided.
-*Changed to installation via CRAN within setup; remove this chunk?*
-```{r}
-
-## install rgee from github
-# remotes::install_github("r-spatial/rgee")
-# library(rgee)
-
-```
 
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once, but I keep having issues and have to start from scratch. 
@@ -514,6 +504,12 @@ Download population raster from the WorldPop FTP, determine population within ti
 Download population data (.tif) for country and covariate of interest (Malawi / entire population in 2020) from the WorldPop FTP and create raster from downloaded data
 ```{r download_population_data_and_create_raster}
 
+# Obtain ISO3 country code for country of interest (coi) using 'wpgpListCountries' function
+ISO3_df <- wpgpListCountries()
+  
+# Identify ISO3 country code for country of interest (coi) and store as object
+ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
+
 # Download  and read in dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name set during setup stages)
 pop_data <- 
   
@@ -522,6 +518,9 @@ pop_data <-
                         destDir = "./WorldPop")
 
 # Note: Downloaded .tif is ~50 MB
+
+# Read in .tif file
+# pop_data <- "./WorldPop/mwi_ppp_2020.tif"
 
 # Create raster
 pop_data <- raster(pop_data)
@@ -1523,3 +1522,11 @@ writeRaster(leastcost_motor_pop,
 
 ```
 
+*Changed to installation via CRAN within setup; remove this chunk?*
+```{r}
+
+## install rgee from github
+# remotes::install_github("r-spatial/rgee")
+# library(rgee)
+
+```
