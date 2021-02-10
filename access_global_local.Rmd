@@ -32,12 +32,13 @@ The key steps of the below are:
 
 *MRes Project: Task 8*
 Restructure code so it contains an initial section for user inputs relating to:
+* packages
 * area of interest
-* road travel speeds
-* NDVI parameters i.e. period of time over which to summarise NDVI plus walking speeds assigned to NDVI intervals
-JL:
-* I envisage that most users won't know the coordinates for the bounding box of their area of interest, but may have a shapefile, or know the name of a district.
-* Would it be useful to allow the option of a data-upload at the start of the script? We can grab the extent from a spatial object. 
+* landsat 8 parameters
+* NDVI parameters i.e. period of time over which to summarise NDVI
+* travel speeds (walking and road)
+* population data parameters
+* health facility data
 
 
 ### Setup process
@@ -121,6 +122,7 @@ bbymax <- -10.73
 3. Setup: Landsat 8 parameters
 * Read in Landsat 8 data
 * Define start and end dates to filter data by
+*Landsat 8 data obtained using GEE?*
 ```{r setup_landsat8_parameters}
 
 # * Read in landsat 8 data
@@ -134,10 +136,43 @@ end_date   <-  "2018-09-30"
 These parameters will be used to calculate the median NDVI per pixel and clip to the area of interest (aoi)
 
 
-4. Setup: Travel speeds (walking and road travel)
-```{r setup_road_travel_speeds}
+4. Setup: Travel speeds
+* Assign walking speeds to traverse NDVI pixels (non-road), depending on NDVI value
+* Assign travel speed to traverse road pixels (obtained using OpenStreetMaps) by motor vehicle
 
-# Road travel speeds
+Walking travel speed.
+```{r setup_walking_travel_speeds}
+
+## Define walking speeds (in Km/h) expected for the following NDVI values:
+
+# NDVI = < 0.35 (impassable)
+walk_speed_1 <- 0.1
+
+# NDVI = 0.35 - 0.6
+walk_speed_2 <- 3.5
+
+# NDVI = 0.6 - 0.7
+walk_speed_3 <- 2.48
+
+# NDVI = > 0.7
+walk_speed_4 <- 1.49
+
+# These can be changed according to expected changes in walking speeds, i.e., during the wet season, etc.
+
+```
+
+Road travel speed by motor vehicle.
+```{r setup_walking_travel_speeds}
+
+## Define road travel speeds (in Km/h) for the following road types:
+
+# Major roads on which national speed limits can typically be reached (e.g., motorway and trunk roads)
+major_road_speed <- 80
+
+# Minor roads on which slower speeds would be expected (e.g., urban roads, dirt roads)
+minor_road_speed <- 20
+
+# These can be changed according to expected changes in travel speeds, i.e., during the wet season, etc.
 
 ```
 
@@ -146,6 +181,7 @@ These parameters will be used to calculate the median NDVI per pixel and clip to
 * Set country of interest (coi) using British English spelling
 * Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
 * Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
+*Can this be done as function?*
 ```{r setup_population_parameters}
 
 # * Set country of interest (coi) using British English spelling
@@ -362,8 +398,11 @@ ndvipath <- "./data/NDVIexample.tif"
 
 ndvi <- raster(ndvipath)
 
-# Reclassify so that <0.35 = impassable, 0.35-0.6 = 3.5km/h, 0.6-0.7 = 2.48km/h and > 0.7 = 1.49km/h 
-ndviwalk_kph <- c(0.1, 3.5,  2.48, 1.49)
+# Reclassify according to walking speeds, defendant on NDVI value, defined during setup stage 4
+ndviwalk_kph <- c(walk_speed_1,
+                  walk_speed_2,  
+                  walk_speed_3,
+                  walk_speed_4)
 
 # Convert to m/s
 ndviwalk_mps <- ndviwalk_kph/3.6
@@ -391,7 +430,7 @@ We are currently using national speed limits as a maximum for primary and major 
 # Primary = 80kph, secondary = 80kph, 'Other' road speed = 20 kph
 road_vector <- c("primary", "secondary", "motorway", "trunk")
 
-q$osm_lines$motorspeedkph <- ifelse(q$osm_lines$highway %in% road_vector, 80, 20)
+q$osm_lines$motorspeedkph <- ifelse(q$osm_lines$highway %in% road_vector, major_road_speed, minor_road_speed)
 
 q$osm_lines$motorspeedmps <- q$osm_lines$motorspeedkph/3.6
 
