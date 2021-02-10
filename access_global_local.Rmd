@@ -84,7 +84,7 @@ GitHub packages.
 ## Download, install and load wpgpDownloadR: an R Package interface for downloading raster datasets from the WorldPop FTP.
 
 # Download/install 'wpgpDownloadR' package
-devtools::install_github("wpgp/wpgpDownloadR")
+# devtools::install_github("wpgp/wpgpDownloadR")
 
 # load 'wpgpDownloadR' package
 library(wpgpDownloadR)
@@ -211,11 +211,14 @@ covariate <- "ppp_2020"
 ```
 
 6. Setup: Health facility data
+Add in health facility locations. 
+*Currently reading in the facilities around Vwaza that have rHAT diagnostics, but will edit this to use afrimapr*
 ```{r setup_health_facility_data}
 
-
+healthfac <- st_read("./data/healthfacexample.shp")
 
 ```
+
 
 
 ### NDVI data generation using rgee
@@ -256,9 +259,6 @@ ee_Initialize(drive = TRUE)
 Now we can use R to run code on Google Earth Engine. Note that lots of examples of translating GEE syntax to be used in rgee can be found here url{https://csaybar.github.io/rgee-examples/}.
 
 *Area of interst (aoi) defined during setup stages*
-
-
-
 
 Then make this into a polygon by using xy combinations for each corner of the area of interest.
 ```{r, eval=F}
@@ -463,14 +463,8 @@ writeRaster(friction_surface_motor,
 
 
 ### Calculate shortest paths
-First, add in health facility locations. Currently I'm reading in the facilities around Vwaza that have rHAT diagnostics, but will edit this to use afrimapr.
-```{r, message=FALSE, results=FALSE}
 
-healthfac <- st_read("./data/healthfacexample.shp")
-
-```
-
-
+Health facility data (healthfac) read in during setup stage 6.
 ```{r, warning=FALSE}
 
 # First calculate the transition matrix
@@ -514,15 +508,15 @@ Download population raster from the WorldPop FTP, determine population within ti
 Download population data (.tif) for country and covariate of interest (Malawi / entire population in 2020) from the WorldPop FTP and create raster from downloaded data
 ```{r download_population_data_and_create_raster}
 
-# Download  dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name set during setup stages)
-wpgpGetCountryDataset(ISO3 = ISO3,
-                      covariate = covariate, 
-                      destDir = "./WorldPop")
+# Download  and read in dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name set during setup stages)
+pop_data <- 
+  
+  wpgpGetCountryDataset(ISO3 = ISO3,
+                        covariate = covariate, 
+                        destDir = "./WorldPop")
 
 # Note: Downloaded .tif is ~50 MB
 
-# Read in .tif file
-pop_data <- "./WorldPop/mwi_ppp_2020.tif"
 # Create raster
 pop_data <- raster(pop_data)
 
@@ -562,30 +556,6 @@ crs(pop_data)
 
 # Visualise raster
 # plot(pop_data)
-
-```
-
-
-##### *Is this chunk needed?*
-```{r merge_and_write_raster}
-
-##  Merge 'pop_data' and 'leastcost_motor'
-
-# Merge
-leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
-
-# Check
-leastcost_motor_pop
-
-# Check CRS
-crs(leastcost_motor_pop)
-# WGS84
-
-# Save as raster
-writeRaster(leastcost_motor_pop,
-            "./WorldPop/pop_data",
-            format = "GTiff", 
-            overwrite=TRUE)
 
 ```
 
@@ -1524,5 +1494,26 @@ pop_table_test <- woprize(features = group_1_poly_simp_dis_poly,
 ```
 
 
+##### *Old chunk used to merge raster files*
+```{r merge_and_write_raster}
 
+##  Merge 'pop_data' and 'leastcost_motor'
+
+# Merge
+leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
+
+# Check
+leastcost_motor_pop
+
+# Check CRS
+crs(leastcost_motor_pop)
+# WGS84
+
+# Save as raster
+writeRaster(leastcost_motor_pop,
+            "./WorldPop/pop_data",
+            format = "GTiff", 
+            overwrite=TRUE)
+
+```
 
