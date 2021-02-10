@@ -187,22 +187,28 @@ minor_road_speed <- 20
 # * Set country of interest (coi) using British English spelling
 coi <- "Malawi"
 
-# * Obtain ISO3 country code for country of interest (coi)
-# The 'wpgpListCountries' function will return a dataframe with all ISO3 country codes available on WorldPop FTP server
-ISO3_df <- wpgpListCountries()
+# Run 'population_data' function; constructed to return dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
+population_data <- 
+  
+  function(coi){
+    
+    # Obtain ISO3 country code for country of interest (coi)
+    # The 'wpgpListCountries' function will return a dataframe with all ISO3 country codes available on WorldPop FTP server
+    ISO3_df <- wpgpListCountries()
+  
+    # Identify ISO3 country code for country of interest (coi) and store as object
+    ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
+  
+    # Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
+    # Download dataset of available covariates for country of interest
+    covariates_df <- wpgpListCountryDatasets(ISO3 = ISO3)
+  
+    return(covariates_df)
+  
+}
 
-# Identify ISO3 country code for country of interest (coi) and store as object
-ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
-# Check
-ISO3
-# ISO3 = MWI
-
-# * Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
-# Download dataset of available covariates for country of interest
-covariates_df <- wpgpListCountryDatasets(ISO3 = ISO3)
-
-# View data and check for/select covariate of interest
-View(covariates_df)
+# View output
+View(population_data(coi))
 # "ppp_2020": Estimated total number of people per grid-cell 2020
 
 # Store chosen covaraite as object
