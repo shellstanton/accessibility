@@ -1,5 +1,5 @@
 ---
-title: "Accessibility - global vs local"
+title: "Accessibility - global vs local: MRes Project"
 author: "John Archer"
 date: "Jan - March 2021"
 output: 
@@ -30,7 +30,7 @@ The key steps of the below are:
 5. Identifying the location of health facilities to use within a cost-distance analysis using the friction surface.
 
 
-*### MRes mini project: Task_8*
+*MRes Project: Task 8*
 Restructure code so it contains an initial section for user inputs relating to:
 * area of interest
 * road travel speeds
@@ -39,90 +39,162 @@ JL:
 * I envisage that most users won't know the coordinates for the bounding box of their area of interest, but may have a shapefile, or know the name of a district.
 * Would it be useful to allow the option of a data-upload at the start of the script? We can grab the extent from a spatial object. 
 
+
 ### Setup process
 
-Setup: Packages
-```{r setup_packages}
+1. Setup: Packages
+* Download, install and load all packages needed to construct friction surface.
 
-## load required packages, and install packages which are potentially missing on client computers
-list.of.packages <- c("sf", "mapview", "googledrive", "osmdata", "ggplot2", "raster", "gdistance", "fasterize", "remotes", "rgdal", "stars", "geojsonio")
+CRAN packages.
+```{r setup_CRAN_packages}
 
+## Load required packages (available from CRAN) and install packages which are potentially missing on client computers
+# Create vector list of CRAN packages needed
+list.of.packages <- c("sf", 
+                      "mapview",  
+                      "googledrive",  
+                      "osmdata", 
+                      "ggplot2",  
+                      "raster",  
+                      "gdistance",  
+                      "fasterize",  
+                      "remotes",  
+                      "rgdal", 
+                      "stars", 
+                      "geojsonio", 
+                      "devtools", 
+                      "rgee")
+
+# Identify which CRAN packages aren't currently installed on client computers and store in object
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 
+# Install any missing CRAN packages
 if(length(new.packages)) install.packages(new.packages)
 
+# Load all required CRAN packages
 lapply(list.of.packages, library, character.only = TRUE)
 
 ```
+As WorldPop packages cannot currently be downloaded via CRAN, these must be downloaded via GitHub.
 
-Setup: Area of interest (aoi)
+GitHub packages.
+```{r setup_GitHub_packages}
+
+## Download, install and load wpgpDownloadR: an R Package interface for downloading raster datasets from the WorldPop FTP.
+
+# Download/install 'wpgpDownloadR' package
+devtools::install_github("wpgp/wpgpDownloadR")
+
+# load 'wpgpDownloadR' package
+library(wpgpDownloadR)
+
+```
+All required packages should now be loaded.
+
+
+2. Setup: Area of interest (aoi)
+* Detail limits for a bounding box (lat/long maximum and minimum values, in WGS84) to be used as area of interest (aoi)
+OR
+* Read in shapefile to define area of interest
+OR
+* Specify district name to define area of interest
 ```{r setup_area_of_interest}
 
-# * Define max and minimum values for longitude and latitude using coordinate points (WGS84)
+# * Detail limits for a bounding box (lat/long maximum and minimum values, in WGS84) to be used as area of interest (aoi)
 bbxmin <- 33.2
 bbxmax <- 33.8
 bbymin <- -11.29
 bbymax <- -10.73
-# Polygon created within markdown
+## Polygon created within markdown
 
 # OR:
-# * Read in shapefile
+# * Read in shapefile to define area of interest
 # aoi <- readOGR(dsn = "USER_DIRECTORY", layer = "USER_SHAPEFILE")
 
 # OR:
-# * District name?
+# * Specify district name to define area of interest
 
 ```
+*Need to look into specifying district name*
 
-Setup: Landsat 8 parameters
+
+3. Setup: Landsat 8 parameters
+* Read in Landsat 8 data
+* Define start and end dates to filter data by
 ```{r setup_landsat8_parameters}
 
-# Read in landsat 8 data
+# * Read in landsat 8 data
 ls8_data <- "LANDSAT/LC08/C01/T1_RT_TOA"
 
-# Define start and end dates to filter by
+# * Define start and end dates to filter data by
 start_date <-  "2018-06-01"
 end_date   <-  "2018-09-30"
 
 ```
+These parameters will be used to calculate the median NDVI per pixel and clip to the area of interest (aoi)
 
-Setup: NDVI parameters
-```{r setup_NDVI_parameters}
 
-## NDVI parameters
-
-```
-
-Setup: Road travel speeds
+4. Setup: Travel speeds (walking and road travel)
 ```{r setup_road_travel_speeds}
 
-## Road travel speeds
+# Road travel speeds
 
 ```
 
-Setup: Population parameters
+
+5. Setup: Population parameters
+* Set country of interest (coi) using British English spelling
+* Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
+* Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
 ```{r setup_population_parameters}
 
-# Set country of interest using British English spelling
-COI <- "Malawi"
+# * Set country of interest (coi) using British English spelling
+coi <- "Malawi"
+
+# * Obtain ISO3 country code for country of interest (coi)
+# The 'wpgpListCountries' function will return a dataframe with all ISO3 country codes available on WorldPop FTP server
+ISO3_df <- wpgpListCountries()
+
+# Identify ISO3 country code for country of interest (coi) and store as object
+ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
+# Check
+ISO3
+# ISO3 = MWI
+
+# * Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
+# Download dataset of available covariates for country of interest
+covariates_df <- wpgpListCountryDatasets(ISO3 = ISO3)
+
+# View data and check for/select covariate of interest
+View(covariates_df)
+# "ppp_2020": Estimated total number of people per grid-cell 2020
+
+# Store chosen covaraite as object
+covariate <- "ppp_2020"
+
+```
+
+6. Setup: Health facility data
+```{r setup_health_facility_data}
+
+
 
 ```
 
 
 ### NDVI data generation using rgee
 I keep having issues with the rgee package, so I suggest at some point we split this Rmd file so that we keep the GEE part in one file, and the cost-distance surface generation in another. Users can then either have the option of generating the NDVI in R, or using GEE directly, with the link to the code provided.
+*Changed to installation via CRAN within setup; remove this chunk?*
 ```{r}
 
 ## install rgee from github
 # remotes::install_github("r-spatial/rgee")
-
-library(rgee)
+# library(rgee)
 
 ```
 
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once, but I keep having issues and have to start from scratch. 
-
 ```{r, eval=F}
 
 ## Only need to run once
@@ -137,6 +209,7 @@ Then, initialise GEE. This will check whether you have everything set up to use 
 We then initialise the rgee package. Once rgee is installed I believe you only need to do this once.
 
 Note that you need to link to a Google account that has been given GEE access to be able to complete this stage. As we'll also be using Google Drive for downloading and uploading data, we also need to include 'drive=TRUE'. 
+*Include chunk in setup? - To setup GoogleDrive account?*
 ```{r, eval=F}
 
 ee_Initialize(drive = TRUE)
@@ -146,18 +219,9 @@ ee_Initialize(drive = TRUE)
 
 Now we can use R to run code on Google Earth Engine. Note that lots of examples of translating GEE syntax to be used in rgee can be found here url{https://csaybar.github.io/rgee-examples/}.
 
-First, define the area of interest:
+*Area of interst (aoi) defined during setup stages*
 
-Start by detailing limits for a bounding box (lat/long maximum and minimum values, in WGS84).
-```{r bblims}
 
-## max and minimum values for longitude and latitude
-bbxmin <- 33.2
-bbxmax <- 33.8
-bbymin <- -11.29
-bbymax <- -10.73
-
-```
 
 
 Then make this into a polygon by using xy combinations for each corner of the area of interest.
@@ -185,7 +249,6 @@ ls8 <- ee$ImageCollection(ls8_data)
 
 
 Filter the LS8 collection by area & then by collection date
-
 ```{r, eval=F}
 
 spatialFiltered <- ls8$filterBounds(aoi)
@@ -196,7 +259,6 @@ temporalFiltered <- spatialFiltered$filterDate(start_date, end_date)
 
 
 Create a cloud mask, apply the mask and calculate NDVI for the unmasked pixels
-
 ```{r, eval=F}
 
 ndvilowcloud <- function(image) {
@@ -220,7 +282,6 @@ cloudlessNDVI = temporalFiltered$map(ndvilowcloud)
 
 
 Calculate the median NDVI per pixel and clip to the area of interest
-
 ```{r, eval=F}
 
 medianimage <- cloudlessNDVI$median()$select('NDVI')
@@ -231,7 +292,6 @@ medNDVIaoi <- medianimage$clip(aoi)
 
 
 View output
-
 ```{r, eval=F}
 
 Map$centerObject(aoi)
@@ -411,61 +471,13 @@ ggplot()+
 Add in population rasters, and calculate the number/proportion of the population living within a range of travel time thresholds. There are R packages for Worldpop which may be of use (https://www.worldpop.org/sdi/plugins), plus Worldpop is in GEE so it's probably easiest to use this dataset. It's at 100m resolution.
 
 Download population raster from the WorldPop FTP, determine population within time-boundary zones from population rasters using reclasified time-boundary data (rather than polygons).
-```{r WorldPop_packages}
-
-## Download, install and load wpgpDownloadR: an R Package interface for downloading raster datasets from WorldPop FTP.
-
-# Requires installation of "devtools" package
-# install.packages("devtools")
-
-# Download/install 'wpgpDownloadR' package
-# devtools::install_github("wpgp/wpgpDownloadR")
-
-# load 'wpgpDownloadR' package
-library(wpgpDownloadR)
-
-```
-
-
-Obtain ISO3 (country code) for country of interest (Malawi).
-```{r ISO3_country_code}
-
-## Download ISO3 (country code) dataframe to obtain ISO3 info
-
-# The 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
-ISO3_df <- wpgpListCountries()
-# Check
-# View(ISO3_df)
-
-# Set country of interest 
-COI <- "Malawi"
-
-# Ascertain ISO3 of Malawi
-ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
-ISO3
-# MWI
-
-```
-
 
 Download population data (.tif) for country and covariate of interest (Malawi / entire population in 2020) from the WorldPop FTP and create raster from downloaded data
 ```{r download_population_data_and_create_raster}
 
-## The 'wpgpListCountryDatasets' function will return a dataframe of available covariates from WorldPop FTP for a country of interest
-
-# Download dataset of avaliable covariates for country of interest
-covariates_df <- wpgpListCountryDatasets(ISO3 = ISO3)
-
-# Check data and check for covariates of interest
-View(covariates_df)
-# "ppp_2020": Estimated total number of people per grid-cell 2020
-
-# Store chosen covaraite as object
-covariate <- "ppp_2020"
-
-# Download  dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name)
+# Download  dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name set during setup stages)
 wpgpGetCountryDataset(ISO3 = ISO3,
-                      covariate = covariate, # This needs to be chosen?
+                      covariate = covariate, 
                       destDir = "./WorldPop")
 
 # Note: Downloaded .tif is ~50 MB
@@ -546,7 +558,7 @@ Reclassify 'leastcost_motor' raster to chosen time-boundary categorical zones.
 # 'rasterfromXYZ' function works only with three columns, so remove 'layer' column from 'lcm_df'
 lcm_df$layer = NULL
 # Check
-# View(lcm_df)
+View(lcm_df)
 
 # Create new raster from 'lcm_df' dataframe
 lcm_raster <- rasterFromXYZ(lcm_df)
@@ -782,10 +794,10 @@ ISO3_df <- wpgpListCountries()
 # View(ISO3_df)
 
 # Set country of interest (move to beginning of script within initial setup phase?)
-COI <- "Malawi"
+coi <- "Malawi"
 
 # Ascertain ISO3 of Malawi
-ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
+ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
 ISO3
 
 # 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
@@ -1249,10 +1261,10 @@ ISO3_df <- wpgpListCountries()
 # View(ISO3_df)
 
 # Set country of interest (move to beginning of script within initial setup phase?)
-COI <- "Malawi"
+coi <- "Malawi"
 
 # Ascertain ISO3 of Malawi
-ISO3 <- ISO3_df[ISO3_df$Country == COI, "ISO3"]
+ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
 ISO3
 # MWI
 
