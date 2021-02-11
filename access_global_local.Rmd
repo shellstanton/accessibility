@@ -519,9 +519,6 @@ pop_data <-
 
 # Note: Downloaded .tif is ~50 MB
 
-# Read in .tif file
-# pop_data <- "./WorldPop/mwi_ppp_2020.tif"
-
 # Create raster
 pop_data <- raster(pop_data)
 

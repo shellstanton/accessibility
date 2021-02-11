@@ -1,0 +1,139 @@
+---
+title: "malaria_atlas_project"
+author: "John Archer"
+date: "Jan - March 2021"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r packages}
+
+## Packages
+install.packages("gdistance")
+install.packages("abind")
+install.packages("rje")
+install.packages("ggplot2")
+install.packages("malariaAtlas")
+
+library(gdistance)
+library(abind)
+library(rje)
+library(ggplot2)
+library(malariaAtlas)
+
+## Plot defaults
+theme_set(theme_minimal(base_size=14))
+
+
+```
+
+
+```{r}
+
+# Create shapefile 
+extent(leastcost_motor) 
+# Show in New WindowClear OutputExpand/Collapse Output
+# class      : Extent 
+# xmin       : 33.19985 
+# xmax       : 33.80001 
+# ymin       : -11.29021 
+# ymax       : -10.72993 
+
+library(sp)
+coords <- matrix(c(33.19985, -10.72993,
+                   33.19985, -11.29021,
+                   33.80001, -11.29021,
+                   33.80001, -10.72993),
+                 ncol = 2,
+                 byrow = TRUE)
+
+# Create polygon
+aoi_polygon <- Polygon(coords)
+aoi_polygon <- SpatialPolygons(list(Polygons(list(aoi_polygon), ID = "a")), proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+
+# Check
+plot(aoi_polygon, axes = TRUE)
+
+```
+
+
+```{r}
+
+# Use 'lcm_pop_data_rcl_stars_sf'
+friction <- malariaAtlas::getRaster(surface = "A global friction surface enumerating land-based travel speed for a nominal year 2015",
+                                    shp = aoi_polygon)
+
+extent(friction) <- extent(leastcost_motor) 
+extent(friction) == extent(leastcost_motor)
+# TRUE
+
+# Check
+plot(friction)
+
+```
+
+
+
+```{r}
+
+# Create transition matrix
+transition_matrix <- gdistance::transition(friction, function(x) 1/mean(x), 8) 
+transition_matrix <- gdistance::geoCorrection(transition_matrix) 
+
+
+```
+
+
+```{r}
+
+# Read in health facilty data
+healthfac <- st_read("./data/healthfacexample.shp")
+
+```
+
+
+```{r}
+
+# Calculate the cumulative cost
+malaria_atlas_project_lcm <-  accCost(transition_matrix, as_Spatial(healthfac))
+
+writeRaster(malaria_atlas_project_lcm,
+            "./malaria_atlas_project_outputs/malaria_atlas_project_lcm",
+            format = "GTiff", 
+            overwrite=TRUE)
+
+```
+
+
+Now create some plots of the data.
+```{r, warning=FALSE}
+
+## warning for removing NA pixels is masked
+malaria_atlas_project_lcm_df <- as.data.frame(malaria_atlas_project_lcm, xy = TRUE)
+
+lcm_df$mins <- lcm_df$layer/60
+
+ggplot()+
+    geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
+    scale_fill_brewer(palette = "YlGnBu")+
+    geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
+    geom_sf(data=healthfac, size=2, colour="red")+
+    guides(fill=guide_legend(title="Time (mins)"))
+
+```
+
+
+
+
+
+
+
