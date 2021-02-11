@@ -71,7 +71,7 @@ Generate friction surface.
 
 # Generate friction surface
 friction_surface <- malariaAtlas::getRaster(surface = "A global friction surface enumerating land-based travel speed for a nominal year 2015",
-                                    shp = aoi_polygon)
+                                            shp = aoi_polygon)
 
 # Adjust extent
 extent(friction_surface) <- extent(leastcost_motor) 
@@ -146,7 +146,177 @@ ggplot()+
 ```
 
 
+Download population data (.tif) for country and covariate of interest (Malawi / entire population in 2020) from the WorldPop FTP and create raster from downloaded data
+```{r download_population_data_and_create_raster}
 
+# Obtain ISO3 country code for country of interest (coi) using 'wpgpListCountries' function
+ISO3_df <- wpgpListCountries()
+  
+# Identify ISO3 country code for country of interest (coi) and store as object
+ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
+
+# Download  and read in dataset (.tif) for country and covariate of interest (based on ISO3 and covariate name set during setup stages)
+pop_data <- 
+  
+  wpgpGetCountryDataset(ISO3 = ISO3,
+                        covariate = covariate, 
+                        destDir = "./WorldPop")
+
+# Note: Downloaded .tif is ~50 MB: This is the entire country of Malawi
+
+# Can just bbox be downloaded?
+
+# Create raster
+pop_data <- raster(pop_data)
+
+# Check
+pop_data
+# CRS assigned: WGS84
+
+```
+
+
+Resample 'pop_data' raster to match resolution of 'leastcost_motor'.
+```{r resample_pop_data}
+
+# Determine 'pop_data' resolution 
+res(pop_data)
+# 0.0008333333 0.0008333333
+
+# Determine 'leastcost_motor' resolution
+leastcost_motor
+res(malaria_atlas_project_lcm)
+# 0.0002694946 0.0002694946
+
+## Use 'resample' function to:
+# * Resample 'pop_data' to match resolution of 'leastcost_motor'
+# * Clip 'pop_data' to extent of 'leastcost_motor'
+malaria_atlas_project_pop_data <- resample(pop_data, malaria_atlas_project_lcm, method = "bilinear")
+
+# Check
+res(malaria_atlas_project_pop_data) == res(malaria_atlas_project_lcm)
+# True
+extent(malaria_atlas_project_pop_data) == extent(malaria_atlas_project_lcm)
+# True
+
+# Check CRS
+crs(malaria_atlas_project_pop_data)
+# WGS84
+
+# Visualise raster
+# plot(pop_data)
+
+```
+
+
+Reclassify 'leastcost_motor' raster to chosen time-boundary categorical zones.
+```{r reclassify}
+
+## Create new raster from 'malaria_atlas_project_lcm_df' dataframe
+# 'Rename 'layers' column
+
+names(malaria_atlas_project_lcm_df)[3] <- "mins"
+# Check
+View(malaria_atlas_project_lcm_df)
+
+# Create new raster from 'lcm_df' dataframe
+malaria_atlas_project_lcm_df_raster <- rasterFromXYZ(malaria_atlas_project_lcm_df)
+# Check
+plot(malaria_atlas_project_lcm_df_raster)
+
+## Create matrix of time-boundary categories of interest (to resample 'lcm_raster')
+## Categories: 
+# * < 30 minutes
+# * 30 minutes - 1 hour
+# * 1 hour - 3 hours
+# * 3 hours - 6 hours
+# * 6 hours - 12 hours
+# * > 12 hours
+rcl_matrix <- c(0, 30, 1, # 30 minutes
+                30, 60, 2, # 1 hour
+                60, 180, 3, # 3 hours
+                180, 360, 4, # 6 hours 
+                360, 720, 5, # 12 hours
+                720, 100000, 6 # 12+ hours
+)
+
+rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+# Check
+# View(rcl_matrix)
+
+## Reclassify 'malaria_atlas_project_lcm_df_raster' using 'rcl_matrix'  according to time-boundary categorical zones
+malaria_atlas_project_lcm_df_raster_rcl <- reclassify(malaria_atlas_project_lcm_df_raster, rcl_matrix, include.lowest=TRUE)
+# Check
+malaria_atlas_project_lcm_df_raster_rcl
+# Rasterlayer
+# CRS not assigned
+
+## Assign CRS to that of 'leastcost_motor' (WGS84)
+projection(malaria_atlas_project_lcm_df_raster_rcl) <- crs(leastcost_motor)
+# Check
+crs(malaria_atlas_project_lcm_df_raster_rcl)
+# CRS set (WGS84)
+
+# Check
+# plot(lcm_pop_data_rcl)
+
+# Check as data.frame
+malaria_atlas_project_lcm_df_raster_rcl_df <- as.data.frame(malaria_atlas_project_lcm_df_raster_rcl, xy = TRUE)
+# View(lcm_rcl_pop_data_df)
+
+```
+
+
+Determine population within each time-boundary zone. Summate the data to give total number of individuals within chosen time-boundary categorical zones and calculate % of total population within chosen time-boundary categorical zones.
+*Create for-loops?*
+```{r determine_population_within_time-boundary_zones}
+
+# Determine population (within 'pop_data' raster), within time-boundary  zones (within 'malaria_atlas_project_lcm_df_raster_rcl') using 'zonal' function 
+malaria_atlas_project_zone <- zonal(malaria_atlas_project_pop_data, malaria_atlas_project_lcm_df_raster_rcl, fun = sum)
+
+# Create dataframe
+malaria_atlas_project_zone_df <- as.data.frame(malaria_atlas_project_zone, xy = TRUE)
+
+# Check
+View(malaria_atlas_project_zone_df)
+
+# Rename columns 
+colnames(malaria_atlas_project_zone_df)
+names(malaria_atlas_project_zone_df)[1] <- "Zone"
+names(malaria_atlas_project_zone_df)[2] <- "Zone Population"
+View(malaria_atlas_project_zone_df)
+
+# Replace time-boundary zone codes with chosen time-boundary categories
+malaria_atlas_project_zone_df$Zone <- c("< 30 minutes",
+                                        "30 minutes - 1 hour",
+                                        "1 hour - 3 hours",
+                                        "3 hours - 6 hours",
+                                        "6 hours - 12 hours")
+
+# Add 'Total Population'  column
+malaria_atlas_project_zone_df$" Total Population" <-
+  
+  c(sum(malaria_atlas_project_zone_df$"Zone Population"[1]),
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:2]),
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:3]),
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:4]),
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]))
+
+# Add % of total population column
+malaria_atlas_project_zone_df$"% Population" <-
+   
+  c(sum(malaria_atlas_project_zone_df$"Zone Population"[1])   / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100,
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:2]) / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100,
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:3]) / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100,
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:4]) / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100,
+    sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100)
+  
+
+# Check
+View(malaria_atlas_project_zone_df)
+print(lcm_rcl_zone_df)
+
+```
 
 
 

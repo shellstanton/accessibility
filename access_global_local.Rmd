@@ -101,7 +101,7 @@ OR
 * Specify district name to define area of interest
 ```{r setup_area_of_interest}
 
-# * Detail limits for a bounding box (lat/long maximum and minimum values, in WGS84) to be used as area of interest (aoi)
+# * Detail limits of bounding box (lat/long maximum and minimum values, in WGS84) to be used as area of interest (aoi)
 bbxmin <- 33.2
 bbxmax <- 33.8
 bbymin <- -11.29
@@ -177,7 +177,17 @@ minor_road_speed <- 20
 ```
 
 
-5. Setup: Population parameters
+5. Setup: Health facility data
+Add in health facility locations. 
+*Currently reading in the facilities around Vwaza that have rHAT diagnostics, potentially edit this to use afrimapr?*
+```{r setup_health_facility_data}
+
+healthfac <- st_read("./data/healthfacexample.shp")
+
+```
+
+
+6. Setup: Population parameters
 * Set country of interest (coi) using British English spelling
 * Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
 * Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
@@ -214,17 +224,6 @@ View(population_data(coi))
 covariate <- "ppp_2020"
 
 ```
-
-6. Setup: Health facility data
-Add in health facility locations. 
-*Currently reading in the facilities around Vwaza that have rHAT diagnostics, potentially edit this to use afrimapr?*
-```{r setup_health_facility_data}
-
-healthfac <- st_read("./data/healthfacexample.shp")
-
-```
-
-
 All setup stages now complete.
 
 
@@ -520,7 +519,9 @@ pop_data <-
                         covariate = covariate, 
                         destDir = "./WorldPop")
 
-# Note: Downloaded .tif is ~50 MB
+# Note: Downloaded .tif is ~50 MB: This is the entire country of Malawi
+
+# Can just bbox be downloaded?
 
 # Create raster
 pop_data <- raster(pop_data)
