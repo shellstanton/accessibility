@@ -106,7 +106,7 @@ bbxmin <- 33.2
 bbxmax <- 33.8
 bbymin <- -11.29
 bbymax <- -10.73
-## Polygon created within markdown
+## 'EarthEngine Object: Geometry' created within markdown
 
 # OR:
 # * Read in shapefile to define area of interest
@@ -122,7 +122,7 @@ bbymax <- -10.73
 3. Setup: Landsat 8 parameters
 * Read in Landsat 8 data
 * Define start and end dates to filter data by
-*Landsat 8 data obtained using GEE?*
+*Landsat 8 data obtained using GEE*
 ```{r setup_landsat8_parameters}
 
 # * Read in landsat 8 data
@@ -207,6 +207,7 @@ population_data <-
 
 # Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
 View(population_data(coi))
+
 # "ppp_2020": Estimated total number of people per grid-cell 2020
 
 # Store chosen covaraite as object
@@ -222,6 +223,8 @@ Add in health facility locations.
 healthfac <- st_read("./data/healthfacexample.shp")
 
 ```
+
+
 All setup stages now complete.
 
 
@@ -681,26 +684,263 @@ print(lcm_rcl_zone_df)
 
 ----- ### Other method attempts 
 
-### Option_1: Extract time-boundary polygons from 'leastcost_motor' ???
+
+Option 1: Generate time-boundary polygons from 'lcm_pop_data_rcl' and submit to WorldPop.
 ```{r isolate_time_boundary_polygons, include=FALSE}
 
-### Extract points (< 30 mins from health facilities) from leastcost_motor then create polygon ???
 
-# WIP
-# extract(leastcost_motor, XXX?,)
-
-test <- rasterToPolygons(leastcost_motor, 
-                         fun = function(x){x < 1000},
+test <- rasterToPolygons(lcm_pop_data_rcl, 
                          dissolve = TRUE)
 
-test
-plot(test)
+# Ran for 3 hours+ and did not complete 
 
 ```
 
 
+Option 2: Reclassify 'leastcost_motor', create polygon (using 'stars' package), save and and submit to WorldPop. 
+```{r}
 
-### Option_2: Subset time-boundary data from data.frame, create polygon(s) and submit to WorldPop ???
+# Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
+View(lcm_df)
+lcm_df$layer = NULL
+View(lcm_df)
+
+# Create raster
+lcm_raster <- rasterFromXYZ(lcm_df)
+plot(lcm_raster)
+
+# Create matrix
+rcl_matrix <- c(0, 30, 1, # 30 minutes
+                30, 60, 2, # 1 hour
+                60, 180, 3, # 3 hours
+                180, 360, 4, # 6 hours 
+                360, 720, 5, # 12 hours
+                720, 100000, 6 # 12+ hours
+)
+
+rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+# Check
+View(rcl_matrix)
+
+# Reclassify 'lcm_raster' with 'rcl_matrix' 
+lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
+lcm_pop_data_rcl
+
+
+## Attemot to conver 'lcm_pop_data_rcl' to polygons using following:
+# * rasterToPolygons() function
+# * 'FKR' package
+# * 'stars' package
+
+
+## rasterToPolygons() function
+# Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours and so canceled (see: Option 1)
+
+
+## 'FKR' package
+# Install/load 'FKR' package
+# install.packages("FRK")
+library(FRK)
+
+# Create dataframe from 'lcm_pop_data_rcl' (reclassified data)
+lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
+View(lcm_rcl_pop_data_df)
+
+# Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
+lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
+
+# Check
+plot(lcm_rcl_pop_data_polygons)
+lcm_rcl_pop_data_polygons
+# spatialpolygons
+
+# Save as shapefile to be uploaded to WorldPop
+library(rgdal)
+writeOGR(lcm_rcl_pop_data_polygons, 
+         dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
+         layer = 'lcm_rcl_polygons', 
+         driver = "ESRI Shapefile")
+# Error in writeOGR(lcm_rcl_pop_data_polygons, dsn = "lcm_rcl_pop_data_polygons_shp",  : obj must be a SpatialPointsDataFrame, SpatialLinesDataFrame or SpatialPolygonsDataFrame
+
+# FKR' package: Did not work - unable to save spatialpolygon as shapefile.
+
+
+## 'stars' package
+
+# Set CRS of 'lcm_pop_data_rcl' to that of 'leastcost_motor'
+crs(leastcost_motor)
+# +proj=longlat +datum=WGS84 +no_defs 
+
+projection(lcm_pop_data_rcl) <- crs(leastcost_motor)
+crs(lcm_pop_data_rcl)
+
+# Load 'stars' package
+library(stars)
+
+# Convert 'lcm_pop_data_rcl' from rasterlayer to 'stars' object
+lcm_pop_data_rcl_stars <- st_as_stars(lcm_pop_data_rcl)
+lcm_pop_data_rcl_stars
+# stars object
+
+# Check
+plot(lcm_pop_data_rcl_stars)
+
+# convert stars object to sf object
+lcm_pop_data_rcl_stars_sf <- st_as_sf(lcm_pop_data_rcl_stars,
+                                      as_points = FALSE,
+                                      merge = TRUE)
+
+# Check
+plot(lcm_pop_data_rcl_stars_sf)
+lcm_pop_data_rcl_stars_sf
+# geometry type: POLYGON
+# CRS has been set
+
+# Save as polygon
+st_write(lcm_pop_data_rcl_stars_test,
+         dsn = "time_boundary_polygon", 
+         layer = "time_boundary_polygon", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+# Trying to send 22971 tasks...
+# WorldPop has a limit of 1000 tasks per day and would take hours to complete.
+
+
+## Attempt to:
+# *Dissolve polygon, or
+# * Aggregate polygon...
+
+
+## Dissolve using 'rmapshaper' package 
+# install.packages("rmapshaper")
+library(rmapshaper)
+
+# Dissolve using 'ms_dissolve'
+lcm_pop_data_rcl_stars_test_dissolve <- ms_dissolve(lcm_pop_data_rcl_stars_test)
+lcm_pop_data_rcl_stars_test_dissolve
+# geometry type: POLYGON
+
+# Save as polygon
+st_write(lcm_pop_data_rcl_stars_test_dissolve,
+         dsn = "time_boundary_polygon", 
+         layer = "time_boundary_polygon", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+# Error: Request failed :: Invalid Geometry Error. The GeoJSON contains invalid geometries: Self-intersection[33.1998464 -11.2301089] Please contact WorldPop. Reference task ID is 1a8843fc-6f92-5e8d-8961-7fd8d62c4ea7
+
+# contour to boundary lines
+lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE)
+
+# Check
+plot(lcm_pop_data_rcl_stars_sf)
+lcm_pop_data_rcl_stars_sf
+# geometry type: linestring
+# saved and attempted to submit to WorldPop but still submitted 16487 tasks...
+
+# Convert from linestring to polygon 
+lcm_pop_data_rcl_stars_sf_polygon <- st_cast(lcm_pop_data_rcl_stars_sf, "POLYGON")
+
+# Check
+plot(lcm_pop_data_rcl_stars_sf_polygon)
+lcm_pop_data_rcl_stars_sf_polygon
+# geometry type: POLYGON
+# *doesn't seem to work*: irregular shape when plotting
+
+
+## Aggregate polygon
+# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon)
+# Took 30+ minutes so canceled
+
+
+## Attempt 'ms_lines' function from 'rmapshaper' package to isolate time-boundary boarders
+library(rmapshaper)
+lcm_pop_data_rcl_stars_sf_polygon_lines <- ms_lines(lcm_pop_data_rcl_stars_sf_polygon)
+
+# Check
+lcm_pop_data_rcl_stars_sf_polygon_lines
+# geometry type: multilinestring
+
+# Convert to linestring using 'st_cast'
+lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines, "LINESTRING")
+lcm_pop_data_rcl_stars_sf_polygon_lines_cast
+# geometry type: linestring
+
+# Convert (cast) to polygon using 'st_cast'
+lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines_cast, "POLYGON")
+lcm_pop_data_rcl_stars_sf_polygon_lines_cast
+# Error: 'polygons require at least 4 points'
+
+# Dissolve using 'ms_dissolve'
+lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg <- ms_dissolve(lcm_pop_data_rcl_stars_sf_polygon)
+lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg
+# geometry type:multipolygon
+# saved as .shp but could not submit to WorldPop as not POLYGON...
+
+# use 'st_cast' again to convert (cast) from multipolygon to polygon
+lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg, "POLYGON")
+# lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon
+# geometry type: POLYGON
+
+# Check
+# plot(lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon)
+
+# Save as polygon
+st_write(lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon,
+         dsn = "time_boundary_polygon", 
+         layer = "time_boundary_polygon", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+## PRE-st_dissolve: Trying to send 16487 tasks...
+## POST-st_dissolve: Trying to send 9222 tasks...
+
+# Still attempting to upload far too many tasks.
+
+```
+
+
+Option 3: Subset time-boundary data from data.frame, create polygon(s) and submit to WorldPop.
 ```{r subset_dataframe_and_submit_polygon_to_WorldPop, include=FALSE}
 
 # Load dplyr
@@ -734,15 +974,14 @@ thirty_min_raster
 # RasterLayer
 # No CRS assigned...
 
-# plot(thirty_min_raster)
+plot(thirty_min_raster)
 
 # Create polygon (takes ~5 mins)
-# thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
+thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
 
 # Check
 thirty_min_polygon
 # Is a SpatialPolygonsDataFrame (spdf)
-# Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
 
 plot(thirty_min_polygon)
 # A solid shape, whereas we need boundary data
@@ -762,7 +1001,7 @@ writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "
 
 # Convert 'thirty_min_polygon_agg' to SpatialPolygonsDataFrame
 thirty_min_polygon_agg_df <- SpatialPolygonsDataFrame(thirty_min_polygon_agg, data = as.data.frame("thirty_min_polygon_agg_df"))
-## But this saves as SpatialPolygonsDataFrame? Not polygon?
+# Saves as SpatialPolygonsDataFrame (not polygon)
 
 ## Install and use wpCPR : An R package to submit a custom polygon request to the WorldPop API
 # install.packages("devtools")
@@ -783,13 +1022,252 @@ wpCPRPopulation (year=2020,
 ## Error: Request failed :: Unsupported Geometry:  This operation supports only Polygons.
 
 ```
-### Unable to save SpatialPolygonsDataFrame as Polygon shapefile and so cannot upload to WorldPop...
+Unable to save SpatialPolygonsDataFrame as Polygon shapefile and so cannot upload to WorldPop...
 
 
-### Option_3: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract from population rasters using polygon(s) (Working). 
+Option 4: Download raster from WorlPop ATP to obtain resolution, aggregate 'lcm_raster' to WorldPop resolution, reclassify using 'rcl_matrix', reclassify to just keep group 1 (or whichever), make a stars object, transform to polygon, simplify and/or dissolve polygon and submit to WorldPop. 
+```{r}
+
+## Install 'wpgpDownloadR' package
+# devtools::install_github("wpgp/wpgpDownloadR")
+
+# load package
+library(wpgpDownloadR)
+
+## Download ISO3 dataframe to obtain ISO3 info
+# 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
+ISO3_df <- wpgpListCountries()
+# View(ISO3_df)
+
+# Set country of interest (move to beginning of script within initial setup phase?)
+coi <- "Malawi"
+
+# Ascertain ISO3 of Malawi
+ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
+ISO3
+# MWI
+
+# 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
+# This function could be used to query the name of the dataset which then could be downloaded for a country.
+covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
+
+# Check data and check for covariates of interest
+# View(covariates)
+
+# 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
+wpgpGetCountryDataset(ISO3 = ISO3,
+                      covariate = "ppp_2020",
+                      destDir = "./WorldPop")
+
+## .tif file is ~50 MB
+# Read in .tif file
+pop_data <- "./WorldPop/mwi_ppp_2020.tif"
+pop_data <- raster(pop_data)
+
+# Check
+pop_data
+# plot(pop_data)
+
+
+## Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
+View(lcm_df)
+lcm_df$layer = NULL
+View(lcm_df)
+
+# Create raster
+lcm_raster <- rasterFromXYZ(lcm_df)
+lcm_raster
+plot(lcm_raster)
+
+
+# Set CRS
+crs(leastcost_motor)
+# +proj=longlat +datum=WGS84 +no_defs 
+lcm_crs <- crs(leastcost_motor)
+lcm_crs
+
+projection(lcm_raster) <- lcm_crs
+lcm_raster
+# CRS set
+
+## Aggregate 'lcm_raster' to same resolution as WorldPop raster
+
+# Divide WorldPop raster resolution by 'leastcost_motor' resolution to give multiplication factor
+res(pop_data)
+# 0.0008333333 0.0008333333
+pop_data_res <- res(pop_data)
+
+res(lcm_raster)
+# 0.0002694946 0.0002694946
+lcm_res <- res(lcm_raster)
+
+# Division
+multiplication_factor <- pop_data_res / lcm_res
+multiplication_factor
+# 3.092208 3.092208
+
+## Aggregate 'lcm_raster' to same resolution as WorldPop raster
+agg_test <- aggregate(lcm_raster, fact = multiplication_factor)
+# Check
+plot(agg_test)
+res(agg_test)
+# 0..0008084838 0.0008084838 ???
+
+# Check as data.frame
+agg_test_df <- as.data.frame(agg_test, xy = TRUE)
+View(agg_test_df)
+
+## Reclassify 'agg_test_df'
+
+# Create matrix
+rcl_matrix <- c(0, 30, 1, # 30 minutes
+                30, 60, 2, # 1 hour
+                60, 180, 3, # 3 hours
+                180, 360, 4, # 6 hours 
+                360, 720, 5, # 12 hours
+                720, 100000, 6 # 12+ hours
+)
+
+rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
+# Check
+View(rcl_matrix)
+
+# Reclassify 'agg_test' with 'rcl_matrix' 
+agg_test_reclass <- reclassify(agg_test, rcl_matrix, include.lowest=TRUE)
+agg_test_reclass
+
+## Make a new layer which is the whole raster, then reclassify to keep group 1
+group_1 <- agg_test_reclass
+
+# Make other categories NA
+group_1 <- reclassify(group_1, c(1, 6, NA))
+
+# make this a stars object
+group_1_stars <- st_as_stars(group_1)
+plot(group_1_stars)
+
+# Transform to polygon
+group_1_poly <- st_as_sf(group_1_stars, merge = TRUE, long = FALSE)
+
+group_1_poly <- st_make_valid(group_1_poly)
+
+group_1_poly_combine <- st_combine(group_1_poly)
+
+# Simplify geometry 
+library(rmapshaper)
+group_1_poly_simp <- ms_simplify(group_1_poly_combine, explode = TRUE)
+
+# cast back to polygon
+group_1_poly_simp_poly <- st_cast(group_1_poly_simp, "POLYGON")
+
+# Dissolve 'group_1_poly_simp', then transform back to polygon
+group_1_poly_simp_dis <- ms_dissolve(group_1_poly_simp)
+group_1_poly_simp_dis_poly <- st_cast(group_1_poly_simp_dis, "POLYGON")
+
+# Check polygons
+group_1_poly_simp_poly
+group_1_poly_simp_dis_poly
+# Both POLYGON
+# Both have CRS set
+
+# Save both as polygons
+st_write(group_1_poly_simp_poly,
+         dsn = "group_1_poly_simp_poly", 
+         layer = "group_1_poly_simp_poly", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+st_write(group_1_poly_simp_dis_poly,
+         dsn = "group_1_poly_simp_dis_poly", 
+         layer = "group_1_poly_simp_dis_poly", 
+         driver = "ESRI Shapefile", 
+         overwrite  = TRUE)
+
+## Submit to WorldPop
+# load package
+library(wpCPR)
+
+wpCPRPopulation (year=2020,
+                 shapeFilePath = "./group_1_poly_simp_poly/group_1_poly_simp_poly.shp",
+                 outputFilePath = NULL,
+                 apikey = NULL,
+                 callbacktime = 5,
+                 maxexectime = 3600,
+                 apiurl = NULL,
+                 verbose = TRUE)
+
+## Error: "Unsupported Geometry:  This operation supports only polygons" (Even though both are polygons...)
+
+```
+
+
+Option 5: Repeat Option 4 but attempt to upload polygon to WorldPop *via wopr package*
+```{r}
+
+# 'wopr' is an R package that provides API access to the WorldPop Open Population Repository. This gives users the ability to:
+
+# Download WorldPop population data sets directly from the R console,
+# Submit spatial queries (points or polygons) to the WorldPop server to retrieve population estimates within user-defined geographic areas,
+# Get estimates of population sizes for specific demographic groups (i.e. age and sex), and
+# Get probabilistic estimates of uncertainty for all population estimates.
+# Run the woprVision web application locally from the R console.
+
+
+# Install 'wopr'
+devtools::install_github('wpgp/wopr')
+library(wopr)
+
+# Check polygons
+group_1_poly_simp_poly
+plot(group_1_poly_simp_poly)
+
+group_1_poly_simp_dis_poly
+plot(group_1_poly_simp_dis_poly)
+# Both POLYGON
+# Both have CRS set
+
+WP_catalogue <- getCatalogue(spatial_query=T)
+View(WP_catalogue)
+
+# Upload polygon to WorldPop
+pop_test_multi_polygon <- woprize(features = group_1_poly_simp_poly, 
+                                  country = ISO3, 
+                                  version = '1.2',
+                                  agesex_select = FALSE,
+                                  confidence = 0.95,
+                                  tails = 2,
+                                  abovethresh = 2e4,
+                                  belowthresh = 1e4
+                                  )
+
+# Error: Error in 1:nrow(features) : argument of length 0
+
+# Try with 'lcm_pop_data_rcl_stars_test' 
+pop_table_test <- woprize(features = group_1_poly_simp_dis_poly, 
+                          country=ISO3, 
+                          version='1.2',
+                          confidence=0.95,
+                          tails=2,
+                          abovethresh=2e4,
+                          belowthresh=1e4
+                          )
+
+# Error: Exceeds 1000 tasks...
+
+
+# Test
+pop_test_single_polygon <- getPop(feature= group_1_poly_simp_poly[1,], 
+                           country = 'ISO3', 
+                           version = 'v1.2')
+
+summaryPop(N, confidence=0.95, tails=2, abovethresh=1e2, belowthresh=50)
+
+```
+
+
+Option 6: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract population numbers from population rasters using polygon(s) (Working). 
 ```{r download_population_data_raster, include=FALSE}
 
-### Add in raster population dataset layers ???
 ## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
 # install.packages("devtools")
 
@@ -979,521 +1457,12 @@ sixty_min_pop
 # 799607.3
 
 ```
-### Working but generting polygon for time-boundaries takes a long time (30 min ~5 mins to generate, 60 min ~20 mins to generate...)
+### Working but generating polygon for time-boundaries takes a long time (30 min ~5 mins to generate, 60 min ~20 mins to generate...)
 
 
-###
 
 
-### Option_5: Generate polygon(s) to save as .shp and submit to WorldPop 
-```{r}
 
-##### Reclassify 'leastcost_motor' and extract from 'pop_data'
-
-# Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
-View(lcm_df)
-lcm_df$layer = NULL
-View(lcm_df)
-
-# Create raster
-lcm_raster <- rasterFromXYZ(lcm_df)
-plot(lcm_raster)
-
-# Create matrix
-rcl_matrix <- c(0, 30, 1, # 30 minutes
-                30, 60, 2, # 1 hour
-                60, 180, 3, # 3 hours
-                180, 360, 4, # 6 hours 
-                360, 720, 5, # 12 hours
-                720, 100000, 6 # 12+ hours
-)
-
-rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
-# Check
-View(rcl_matrix)
-
-# Reclassify 'lcm_raster' with 'rcl_matrix' 
-lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
-lcm_pop_data_rcl
-
-### Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours and so canceled
-
-# Check as data.frame
-lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
-View(lcm_rcl_pop_data_df)
-
-
-##### Try to generate polygon(s)
-
-##### Option_1: 'FKR' package: Bad; requires subsetting dataframe and cannot save as polygon .shp
-# install.packages("FRK")
-# library(FRK)
-
-# Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
-# lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
-
-# plot(lcm_rcl_pop_data_polygons)
-
-# lcm_rcl_pop_data_polygons
-# spatialpolygons
-
-## Can this be saved as polygon (.shp) and uploaded to WorldPop?
-
-## Save as shapefile
-library(rgdal)
-writeOGR(lcm_rcl_pop_data_polygons, 
-         dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
-         layer = 'lcm_rcl_polygons', 
-         driver = "ESRI Shapefile")
-# Error in writeOGR(lcm_rcl_pop_data_polygons, dsn = "lcm_rcl_pop_data_polygons_shp",  : obj must be a SpatialPointsDataFrame, SpatialLinesDataFrame or SpatialPolygonsDataFrame
-
-
-
-##### Option_2: stars package
-lcm_pop_data_rcl
-plot(lcm_pop_data_rcl)
-
-
-# Set CRS
-crs(leastcost_motor)
-# +proj=longlat +datum=WGS84 +no_defs 
-lcm_crs <- crs(leastcost_motor)
-lcm_crs
-
-projection(lcm_pop_data_rcl) <- lcm_crs
-
-
-
-library(stars)
-
-# Convert 'lcm_pop_data_rcl' from rasterlayer to 'stars' object
-lcm_pop_data_rcl_stars <- st_as_stars(lcm_pop_data_rcl)
-lcm_pop_data_rcl_stars
-# stars object
-plot(lcm_pop_data_rcl_stars)
-
-# convert stars object to sf 
-lcm_pop_data_rcl_stars_test <- st_as_sf(lcm_pop_data_rcl_stars,
-                                        as_points = FALSE,
-                                        merge = TRUE)
-
-# Check
-# plot(lcm_pop_data_rcl_stars_test)
-lcm_pop_data_rcl_stars_test
-# geometry type: POLYGON
-# CRS has been set
-
-# Save as polygon
-st_write(lcm_pop_data_rcl_stars_test,
-         dsn = "time_boundary_polygon", 
-         layer = "time_boundary_polygon", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-## Trying to send 22971 tasks...
-
-
-# dissolve using 'rmapshaper' package ??? *cannot get to work*
-# install.packages("rmapshaper")
-library(rmapshaper)
-
-# Dissolve using 'ms_dissolve'
-lcm_pop_data_rcl_stars_test_dissolve <- ms_dissolve(lcm_pop_data_rcl_stars_test)
-lcm_pop_data_rcl_stars_test_dissolve
-# geometry type: POLYGON
-
-# Save as polygon
-st_write(lcm_pop_data_rcl_stars_test_dissolve,
-         dsn = "time_boundary_polygon", 
-         layer = "time_boundary_polygon", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-# Error: Request failed :: Invalid Geometry Error. The GeoJSON contains invalid geometries: Self-intersection[33.1998464 -11.2301089] Please contact WorldPop. Reference task ID is 1a8843fc-6f92-5e8d-8961-7fd8d62c4ea7
-
-# contour to boundary lines
-lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE)
-
-# Check
-plot(lcm_pop_data_rcl_stars_sf)
-lcm_pop_data_rcl_stars_sf
-# geometry type: linestring
-# saved and attempted to submit to WorldPop but still submitted 16487 tasks...
-
-# Convert from linestring to polygon 
-lcm_pop_data_rcl_stars_sf_polygon <- st_cast(lcm_pop_data_rcl_stars_sf, "POLYGON")
-
-# Check
-plot(lcm_pop_data_rcl_stars_sf_polygon)
-lcm_pop_data_rcl_stars_sf_polygon
-# geometry type: POLYGON
-# *doesn't seem to work*: seems irregular when checking plot...
-
-
-
-
-# Aggregate ??? *cannot get to work*
-# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon)
-# Took 30+ minutes so canceled
-
-
-
-
-
-
-# ms_lines ??? *cannot get to work*
-# lcm_pop_data_rcl_stars_sf_polygon_lines <- ms_lines(lcm_pop_data_rcl_stars_sf_polygon)
-# lcm_pop_data_rcl_stars_sf_polygon_lines
-# geometry type: multilinestring
-
-# Convert to linestring
-# lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines, "LINESTRING")
-# lcm_pop_data_rcl_stars_sf_polygon_lines_cast
-# geometry type: linestring
-
-# Convert to polygon
-# lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines_cast, "POLYGON")
-# lcm_pop_data_rcl_stars_sf_polygon_lines_cast
-# Error: 'plygons require at least 4 points'
-
-
-
-
-
-
-# dissolve using 'rmapshaper' package ??? *cannot get to work*
-# install.packages("rmapshaper")
-# library(rmapshaper)
-
-# Dissolve using 'ms_dissolve'
-# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test <- ms_dissolve(lcm_pop_data_rcl_stars_sf_polygon)
-# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test
-# geometry type:multipolygon?
-# saved as .shp but could not submit to WorldPop as not POLYGON...
-
-# use 'st_cast' again to convert from multipolygon to polygon
-# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test, "POLYGON")
-# lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon
-# geometry type: POLYGON
-
-# Check
-# plot(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon)
-
-# Save as polygon
-st_write(lcm_pop_data_rcl_stars_sf_polygon_dissolve_test_polygon,
-         dsn = "time_boundary_polygon", 
-         layer = "time_boundary_polygon", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-## PRE-st_dissolve: Trying to send 16487 tasks...
-## POST-st_dissolve: Trying to send 9222 tasks...
-
-
-```
-
-
-
-### Option_6: Aggregate 'lcm_raster' to WorldPop resolution, reclassify with 'rcl_matrix', reclassify to just keep group 1 (or whichever), make a stars object, transform to polygon, simplify and/or dissolve polygon and submit to WorldPop. 
-```{r}
-
-##### Reclassify 'leastcost_motor' and extract from 'pop_data'
-
-# Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
-View(lcm_df)
-lcm_df$layer = NULL
-View(lcm_df)
-
-# Create raster
-lcm_raster <- rasterFromXYZ(lcm_df)
-lcm_raster
-plot(lcm_raster)
-
-
-# Set CRS
-crs(leastcost_motor)
-# +proj=longlat +datum=WGS84 +no_defs 
-lcm_crs <- crs(leastcost_motor)
-lcm_crs
-
-projection(lcm_raster) <- lcm_crs
-lcm_raster
-# CRS set
-
-
-## Install 'wpgpDownloadR' package
-# devtools::install_github("wpgp/wpgpDownloadR")
-
-# load package
-library(wpgpDownloadR)
-
-## Download ISO3 dataframe to obtain ISO3 info
-# 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
-ISO3_df <- wpgpListCountries()
-# View(ISO3_df)
-
-# Set country of interest (move to beginning of script within initial setup phase?)
-coi <- "Malawi"
-
-# Ascertain ISO3 of Malawi
-ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
-ISO3
-# MWI
-
-# 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
-# This function could be used to query the name of the dataset which then could be downloaded for a country.
-covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
-
-# Check data and check for covariates of interest
-# View(covariates)
-
-# 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
-wpgpGetCountryDataset(ISO3 = ISO3,
-                      covariate = "ppp_2020",
-                      destDir = "./WorldPop")
-
-## .tif file is ~50 MB
-# Read in .tif file
-pop_data <- "./WorldPop/mwi_ppp_2020.tif"
-pop_data <- raster(pop_data)
-
-# Check
-pop_data
-# plot(pop_data)
-
-
-
-
-
-### Aggregate 'lcm_raster' to same resolution as WorldPop raster?
-
-# Divide WorldPop raster resolution by 'leastcost_motor' resolution to give multiplication factor
-res(pop_data)
-# 0.0008333333 0.0008333333
-pop_data_res <- res(pop_data)
-
-res(lcm_raster)
-# 0.0002694946 0.0002694946
-lcm_res <- res(lcm_raster)
-
-# Division
-multiplication_factor <- pop_data_res / lcm_res
-multiplication_factor
-# 3.092208 3.092208
-
-## Aggregate 'lcm_raster' to same resolution as WorldPop raster
-agg_test <- aggregate(lcm_raster, fact = multiplication_factor)
-# Check
-plot(agg_test)
-res(agg_test)
-# 0..0008084838 0.0008084838 ???
-
-# Check as data.frame
-agg_test_df <- as.data.frame(agg_test, xy = TRUE)
-View(agg_test_df)
-
-## Reclassify 'agg_test_df'
-
-# Create matrix
-rcl_matrix <- c(0, 30, 1, # 30 minutes
-                30, 60, 2, # 1 hour
-                60, 180, 3, # 3 hours
-                180, 360, 4, # 6 hours 
-                360, 720, 5, # 12 hours
-                720, 100000, 6 # 12+ hours
-)
-
-rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
-# Check
-View(rcl_matrix)
-
-# Reclassify 'agg_test' with 'rcl_matrix' 
-agg_test_reclass <- reclassify(agg_test, rcl_matrix, include.lowest=TRUE)
-agg_test_reclass
-
-## Make a new layer which is the whole raster, then reclassify to keep group 1
-group_1 <- agg_test_reclass
-
-# Make other categories NA
-group_1 <- reclassify(group_1, c(1,6,NA))
-
-# make this a stars object
-group_1_stars <- st_as_stars(group_1)
-plot(group_1_stars)
-
-# Transform to polygon
-group_1_poly <- st_as_sf(group_1_stars, merge = TRUE, long = FALSE)
-
-group_1_poly <- st_make_valid(group_1_poly)
-
-group_1_poly_combine <- st_combine(group_1_poly)
-
-## Simplify geometry 
-library(rmapshaper)
-group_1_poly_simp <- ms_simplify(group_1_poly_combine, explode = TRUE)
-
-# cast back to polygon
-group_1_poly_simp_poly <- st_cast(group_1_poly_simp, "POLYGON")
-
-# Dissolve 'group_1_poly_simp', then transform back to polygon
-group_1_poly_simp_dis <- ms_dissolve(group_1_poly_simp)
-group_1_poly_simp_dis_poly <- st_cast(group_1_poly_simp_dis, "POLYGON")
-
-# Check polygons
-group_1_poly_simp_poly
-group_1_poly_simp_dis_poly
-# Both POLYGON
-# Both have CRS set
-
-# Save both as polygons
-st_write(group_1_poly_simp_poly,
-         dsn = "group_1_poly_simp_poly", 
-         layer = "group_1_poly_simp_poly", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-st_write(group_1_poly_simp_dis_poly,
-         dsn = "group_1_poly_simp_dis_poly", 
-         layer = "group_1_poly_simp_dis_poly", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./group_1_poly_simp_poly/group_1_poly_simp_poly.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-## Error: "Unsupported Geometry:  This operation supports only Polygons"
-
-
-```
-
-
-
-### Option_7: Aggregate 'lcm_raster' to WorldPop resolution, reclassify with 'rcl_matrix', reclassify to just keep group 1 (or whichever), make a stars object, transform to polygon, simplify and/or dissolve polygon and submit to WorldPop *via wopr package*
-```{r}
-
-# 'wopr' is an R package that provides API access to the WorldPop Open Population Repository. This gives users the ability to:
-
-# Download WorldPop population data sets directly from the R console,
-# Submit spatial queries (points or polygons) to the WorldPop server to retrieve population estimates within user-defined geographic areas,
-# Get estimates of population sizes for specific demographic groups (i.e. age and sex), and
-# Get probabilistic estimates of uncertainty for all population estimates.
-# Run the woprVision web application locally from the R console.
-
-
-# Install 'wopr'
-devtools::install_github('wpgp/wopr')
-library(wopr)
-
-# Check polygons
-group_1_poly_simp_poly
-plot(group_1_poly_simp_poly)
-
-group_1_poly_simp_dis_poly
-plot(group_1_poly_simp_dis_poly)
-# Both POLYGON
-# Both have CRS set
-
-
-
-WP_catalogue <- getCatalogue(spatial_query=T)
-View(WP_catalogue)
-
-
-pop_test_multi_polygon <- woprize(features = group_1_poly_simp_poly, 
-                                  country = ISO3, 
-                                  version = '1.2',
-                                  agesex_select = FALSE,
-                                  confidence = 0.95,
-                                  tails = 2,
-                                  abovethresh = 2e4,
-                                  belowthresh = 1e4
-                                  )
-
-# Error: Error in 1:nrow(features) : argument of length 0
-
-
-
-
-
-
-
-pop_test_single_polygon <- getPop(feature= group_1_poly_simp_poly[1,], 
-                           country = 'ISO3', 
-                           version = 'v1.2')
-
-summaryPop(N, confidence=0.95, tails=2, abovethresh=1e2, belowthresh=50)
-
-
-
-
-
-
-## Try with 'lcm_pop_data_rcl_stars_test' ??
-pop_table_test <- woprize(features = group_1_poly_simp_dis_poly, 
-                          country=ISO3, 
-                          version='1.2',
-                          confidence=0.95,
-                          tails=2,
-                          abovethresh=2e4,
-                          belowthresh=1e4
-                          )
-# Error: Exceeds 1000 tasks
-
-
-
-
-
-
-```
 
 
 ##### *Old chunk used to merge raster files*
@@ -1516,14 +1485,5 @@ writeRaster(leastcost_motor_pop,
             "./WorldPop/pop_data",
             format = "GTiff", 
             overwrite=TRUE)
-
-```
-
-*Changed to installation via CRAN within setup; remove this chunk?*
-```{r}
-
-## install rgee from github
-# remotes::install_github("r-spatial/rgee")
-# library(rgee)
 
 ```
