@@ -15,40 +15,40 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
+Install/load required packages.
 ```{r packages}
 
-## Packages
-install.packages("gdistance")
-install.packages("abind")
-install.packages("rje")
-install.packages("ggplot2")
-install.packages("malariaAtlas")
+# install.packages("gdistance")
+# install.packages("abind")
+# install.packages("rje")
+# install.packages("ggplot2")
+# install.packages("malariaAtlas")
+# install.packages("sp")
 
 library(gdistance)
 library(abind)
 library(rje)
 library(ggplot2)
 library(malariaAtlas)
+library(sp)
 
 ## Plot defaults
 theme_set(theme_minimal(base_size=14))
 
-
 ```
 
 
-```{r}
+Create shapefile based on extent of 'leastcost_motor'.
+```{r create_shapefile}
 
-# Create shapefile 
 extent(leastcost_motor) 
-# Show in New WindowClear OutputExpand/Collapse Output
 # class      : Extent 
 # xmin       : 33.19985 
 # xmax       : 33.80001 
 # ymin       : -11.29021 
 # ymax       : -10.72993 
 
-library(sp)
+# Create bounding box
 coords <- matrix(c(33.19985, -10.72993,
                    33.19985, -11.29021,
                    33.80001, -11.29021,
@@ -66,34 +66,36 @@ plot(aoi_polygon, axes = TRUE)
 ```
 
 
-```{r}
+Generate friction surface.
+```{r generate_friction_surface}
 
-# Use 'lcm_pop_data_rcl_stars_sf'
-friction <- malariaAtlas::getRaster(surface = "A global friction surface enumerating land-based travel speed for a nominal year 2015",
+# Generate friction surface
+friction_surface <- malariaAtlas::getRaster(surface = "A global friction surface enumerating land-based travel speed for a nominal year 2015",
                                     shp = aoi_polygon)
 
-extent(friction) <- extent(leastcost_motor) 
-extent(friction) == extent(leastcost_motor)
+# Adjust extent
+extent(friction_surface) <- extent(leastcost_motor) 
+extent(friction_surface) == extent(friction_surface)
 # TRUE
 
 # Check
-plot(friction)
+plot(friction_surface)
 
 ```
 
 
-
-```{r}
+Create transition matrix.
+```{r transition_matrix}
 
 # Create transition matrix
-transition_matrix <- gdistance::transition(friction, function(x) 1/mean(x), 8) 
+transition_matrix <- gdistance::transition(friction_surface, function(x) 1/mean(x), 8) 
 transition_matrix <- gdistance::geoCorrection(transition_matrix) 
-
 
 ```
 
 
-```{r}
+Read in health facility data.
+```{r health_facility_data}
 
 # Read in health facilty data
 healthfac <- st_read("./data/healthfacexample.shp")
@@ -101,7 +103,8 @@ healthfac <- st_read("./data/healthfacexample.shp")
 ```
 
 
-```{r}
+Calculate cumulative cost.
+```{r cumulative_cost}
 
 # Calculate the cumulative cost
 malaria_atlas_project_lcm <-  accCost(transition_matrix, as_Spatial(healthfac))
@@ -114,16 +117,27 @@ writeRaster(malaria_atlas_project_lcm,
 ```
 
 
-Now create some plots of the data.
+Plot.
 ```{r, warning=FALSE}
 
 ## warning for removing NA pixels is masked
+
+# Create dataframe
 malaria_atlas_project_lcm_df <- as.data.frame(malaria_atlas_project_lcm, xy = TRUE)
 
-lcm_df$mins <- lcm_df$layer/60
+# Check
+View(malaria_atlas_project_lcm_df)
+# 'layers' column appears to already by in minutes 
 
+# Rename 'layers' column to 'mins'
+names(malaria_atlas_project_lcm_df)[3] <- "mins"
+
+# Check
+View(malaria_atlas_project_lcm_df)
+
+# Plot to visualise
 ggplot()+
-    geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
+    geom_raster(data=malaria_atlas_project_lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
     scale_fill_brewer(palette = "YlGnBu")+
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
     geom_sf(data=healthfac, size=2, colour="red")+
