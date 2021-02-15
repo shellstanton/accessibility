@@ -314,7 +314,7 @@ malaria_atlas_project_zone_df$"% Population" <-
 
 # Check
 View(malaria_atlas_project_zone_df)
-print(lcm_rcl_zone_df)
+print(malaria_atlas_project_zone_df)
 
 ```
 

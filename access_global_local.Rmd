@@ -157,7 +157,7 @@ walk_speed_3 <- 2.48
 # NDVI value = > 0.7
 walk_speed_4 <- 1.49
 
-# These can be changed according to expected changes in walking speeds, i.e., during the wet season, etc.
+# These can be changed according to expected changes in walking speeds, e.g., during the wet season, etc.
 
 ```
 
@@ -172,7 +172,7 @@ major_road_speed <- 80
 # Minor roads on which slower speeds would be expected (e.g., urban roads, dirt roads)
 minor_road_speed <- 20
 
-# These can be changed according to expected changes in travel speeds, i.e., during the wet season, etc.
+# These can be changed according to expected changes in travel speeds, e.g., during the wet season, etc.
 
 ```
 
@@ -190,7 +190,7 @@ healthfac <- st_read("./data/healthfacexample.shp")
 6. Setup: Population parameters
 * Set country of interest (coi) using British English spelling
 * Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
-* Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
+* Select and set covariate of interest by viewing dataframe of available covariates dowdnloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
 ```{r setup_population_parameters}
 
 # * Set country of interest (coi) using British English spelling
@@ -241,6 +241,7 @@ This first bit is all about connecting to GEE via the rgee package. You should o
 
 
 Once completed it should say 'Well done! rgee was successfully set up in your system.' and will then prompt you to restart your system. It also suggests running ee_check however there may currently be an issue with this function so I suggest you don't run it.
+
 Then, initialise GEE. This will check whether you have everything set up to use GEE via R. If you don't additional steps will be described.
 
 We then initialise the rgee package. Once rgee is installed I believe you only need to do this once.
