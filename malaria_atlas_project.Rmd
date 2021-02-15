@@ -66,12 +66,30 @@ plot(aoi_polygon, axes = TRUE)
 ```
 
 
+Check list of avaliable raster datasets
+```{r}
+
+# Generate and check list
+# available_rasters <- listRaster(printed = TRUE)
+View(available_rasters)
+
+```
+Raster data of interest:
+"Global friction surface enumerating land-based travel speed with access to motorized transport for a nominal year 2019 "
+and
+"Global friction surface enumerating land-based travel walking-only speed without access to motorized transport for a nominal year 2019 "
+*NOTE: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title...*
+
+
 Generate friction surface.
 ```{r generate_friction_surface}
 
 # Generate friction surface
-friction_surface <- malariaAtlas::getRaster(surface = "A global friction surface enumerating land-based travel speed for a nominal year 2015",
-                                            shp = aoi_polygon)
+friction_surface <- 
+  malariaAtlas::getRaster(surface = "Global friction surface enumerating land-based travel walking-only speed without access to motorized transport for a nominal year 2019 ",
+                          shp = aoi_polygon)
+
+# Note: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title...
 
 # Adjust extent
 extent(friction_surface) <- extent(leastcost_motor) 
@@ -126,14 +144,14 @@ Plot.
 malaria_atlas_project_lcm_df <- as.data.frame(malaria_atlas_project_lcm, xy = TRUE)
 
 # Check
-View(malaria_atlas_project_lcm_df)
+# View(malaria_atlas_project_lcm_df)
 # 'layers' column appears to already by in minutes 
 
 # Rename 'layers' column to 'mins'
 names(malaria_atlas_project_lcm_df)[3] <- "mins"
 
 # Check
-View(malaria_atlas_project_lcm_df)
+# View(malaria_atlas_project_lcm_df)
 
 # Plot to visualise
 ggplot()+
@@ -222,7 +240,7 @@ View(malaria_atlas_project_lcm_df)
 # Create new raster from 'lcm_df' dataframe
 malaria_atlas_project_lcm_df_raster <- rasterFromXYZ(malaria_atlas_project_lcm_df)
 # Check
-plot(malaria_atlas_project_lcm_df_raster)
+# plot(malaria_atlas_project_lcm_df_raster)
 
 ## Create matrix of time-boundary categories of interest (to resample 'lcm_raster')
 ## Categories: 
@@ -315,6 +333,7 @@ malaria_atlas_project_zone_df$"% Population" <-
 # Check
 View(malaria_atlas_project_zone_df)
 print(malaria_atlas_project_zone_df)
+
 
 ```
 

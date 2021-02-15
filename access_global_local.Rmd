@@ -97,8 +97,6 @@ All required packages should now be loaded.
 * Detail limits for a bounding box (lat/long maximum and minimum values, in WGS84) to be used as area of interest (aoi)
 OR
 * Read in shapefile to define area of interest
-OR
-* Specify district name to define area of interest
 ```{r setup_area_of_interest}
 
 # * Detail limits of bounding box (lat/long maximum and minimum values, in WGS84) to be used as area of interest (aoi)
@@ -112,11 +110,9 @@ bbymax <- -10.73
 # * Read in shapefile to define area of interest
 # aoi <- readOGR(dsn = "USER_DIRECTORY", layer = "USER_SHAPEFILE")
 
-# OR:
-# * Specify district name to define area of interest
 
 ```
-*Need to look into specifying district name*
+
 
 
 3. Setup: Landsat 8 parameters
