@@ -461,8 +461,7 @@ AfriMapR
 ```{r}
 
 ## Data: https://zenodo.org/record/3871224#.YCuhSC2cYlk
-
-## Create SpatialPoints object
+# Downloaded Malawi health facility data and stored within folder "malawi_health_facility_data" (within working directory)
 
 # Read in Malawi health facility data
 # install.packages("readxl")
@@ -475,8 +474,9 @@ mwi_mfl <- read_excel("./malawi_health_facility_data/malawi.xlsx")
 mwi_mfl <- subset(mwi_mfl, STATUS!= "Non-functional")
 # Check
 # View(mwi_mfl)
+class(mwi_mfl)
 
-# Create dataframe
+# Convert to dataframe
 mwi_mfl <- as.data.frame(mwi_mfl)
 # Check
 class(mwi_mfl)
@@ -484,7 +484,7 @@ class(mwi_mfl)
 # Check
 View(mwi_mfl)
 
-# Change class of LATITUDE and LONGITUDE columns to numeric
+# Change class of LATITUDE and LONGITUDE columns (currently 'character') to 'numeric'
 class(mwi_mfl$LATITUDE)
 class(mwi_mfl$LONGITUDE)
 # Latitude and Longitude are character values: convert them to numeric
@@ -498,26 +498,19 @@ class(mwi_mfl)
 # data.frame
 View(mwi_mfl)
 
-
-
 # Remove any rows with 'NA' data within either LATITUDE or LONGITUDE columns
 # library(tidyr)
 mwi_mfl <- drop_na(mwi_mfl, "LATITUDE", "LONGITUDE")
 # Check
-# View(mwi_mfl)
+View(mwi_mfl)
 # Checked for 'NA' and no NA cells found, also equal number of rows
 class(mwi_mfl)
+# data.frame
 
 
-# Store coordiantes as object
-mwi_mfl_coord <-  mwi_mfl[c("LATITUDE", "LONGITUDE")]
-# Check
-# View(mwi_mfl_coord)
-
-
-### Create SpatialPointsDataFrame (with CRS of 'leastcost_motor')
-mwi_mfl_spdf <- SpatialPointsDataFrame(coords = mwi_mfl_coord,
-                                       proj4string = crs(leastcost_motor),
+### Create SpatialPointsDataFrame (with CRS of 'friction_surface_motor')
+mwi_mfl_spdf <- SpatialPointsDataFrame(coords = mwi_mfl[c("LATITUDE", "LONGITUDE")],
+                                       proj4string = crs(friction_surface_motor),
                                        data = mwi_mfl)
 
 mwi_mfl_spdf
@@ -525,8 +518,8 @@ mwi_mfl_spdf
 # CRS set
 
 
-### Create SpatialPoints object (with CRS of 'leastcost_motor')
-mwi_mfl_sp <- SpatialPoints(coords = mwi_mfl_coord,
+### Create SpatialPoints object (with CRS of 'friction_surface_motor')
+mwi_mfl_sp <- SpatialPoints(coords = mwi_mfl[c("LATITUDE", "LONGITUDE")],
                             proj4string = crs(friction_surface_motor))
 
 mwi_mfl_sp
@@ -534,11 +527,42 @@ mwi_mfl_sp
 # CRS set
 
 
+## Needs to match 'healthfac':
+healthfac
+# Simple feature collection with 4 features and 21 fields
+# geometry type:  POINT
+# dimension:      XY
+# bbox:           xmin: 33.49996 ymin: -11.22941 xmax: 33.57893 ymax: -10.83907
+# geographic CRS: WGS 84
 
-# Crop to extent of 'friction_surface_motor'
-mwi_mfl_spdf_crop <- crop(mwi_mfl_spdf, friction_surface_motor)
-mwi_mfl_spdf_crop
-# NULL
+# Convert mwi_mfl_spdf_sf to sf object (geometry type: POINT geometry)
+mwi_mfl_spdf_sf <- st_as_sf(mwi_mfl_spdf)
+mwi_mfl_spdf_sf
+# Simple feature collection with 1028 features and 11 fields
+# geometry type:  POINT
+# dimension:      XY
+# bbox:           xmin: -542183 ymin: 1 xmax: -1 ymax: 70989710
+# CRS:            +proj=longlat +datum=WGS84 +no_defs
+
+
+## bbox needs to be cropped to aoi
+
+# Crop 
+mwi_mfl_spdf_sf_crop <- st_crop(mwi_mfl_spdf_sf, 
+                                c(xmin = bbxmin, 
+                                  xmax = bbxmax, 
+                                  ymin = bbymin, 
+                                  ymax = bbymax))
+## Warnings:
+# bounding box has potentially an invalid value range for longlat dataalthough coordinates are longitude/latitude, # st_intersection assumes that they are planar
+# attribute variables are assumed to be spatially constant throughout all geometries
+                           
+
+
+mwi_mfl_spdf_sf_crop
+# bbox:           xmin: NA ymin: NA xmax: NA ymax: NA    ???
+
+
 
 
 ```
@@ -558,7 +582,8 @@ leastcost_motor <-  accCost(trans_motor, as_Spatial(healthfac))
 
 writeRaster(leastcost_motor,
             "./outputs/leastcost_raster_motor",
-            format = "GTiff", overwrite=TRUE)
+            format = "GTiff", 
+            overwrite=TRUE)
 
 ```
 
