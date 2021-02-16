@@ -208,7 +208,7 @@ population_data <-
     
     # Return dataframe
     return(covariates_df)
-  
+    
 }
 
 # Select and set covariate of interest by viewing dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
@@ -453,6 +453,93 @@ friction_surface_motor <- mosaic(osm_road_raster, ndvi_assigned, fun = min, tole
 writeRaster(friction_surface_motor,
             "./outputs/friction_raster_motor",
             format = "GTiff", overwrite=TRUE)
+
+```
+
+
+AfriMapR
+```{r}
+
+## Data: https://zenodo.org/record/3871224#.YCuhSC2cYlk
+
+## Create SpatialPoints object
+
+# Read in Malawi health facility data
+# install.packages("readxl")
+library(readxl)
+mwi_mfl <- read_excel("./malawi_health_facility_data/malawi.xlsx")
+# Check
+# View(mwi_mfl)
+
+# Remove 'Non-functional' facilities
+mwi_mfl <- subset(mwi_mfl, STATUS!= "Non-functional")
+# Check
+# View(mwi_mfl)
+
+# Create dataframe
+mwi_mfl <- as.data.frame(mwi_mfl)
+# Check
+class(mwi_mfl)
+# data.frame
+# Check
+View(mwi_mfl)
+
+# Change class of LATITUDE and LONGITUDE columns to numeric
+class(mwi_mfl$LATITUDE)
+class(mwi_mfl$LONGITUDE)
+# Latitude and Longitude are character values: convert them to numeric
+mwi_mfl$LATITUDE <- as.numeric(mwi_mfl$LATITUDE)
+mwi_mfl$LONGITUDE <- as.numeric(mwi_mfl$LONGITUDE)
+# Check
+class(mwi_mfl$LATITUDE)
+class(mwi_mfl$LONGITUDE)
+# Both numeric
+class(mwi_mfl)
+# data.frame
+View(mwi_mfl)
+
+
+
+# Remove any rows with 'NA' data within either LATITUDE or LONGITUDE columns
+# library(tidyr)
+mwi_mfl <- drop_na(mwi_mfl, "LATITUDE", "LONGITUDE")
+# Check
+# View(mwi_mfl)
+# Checked for 'NA' and no NA cells found, also equal number of rows
+class(mwi_mfl)
+
+
+# Store coordiantes as object
+mwi_mfl_coord <-  mwi_mfl[c("LATITUDE", "LONGITUDE")]
+# Check
+# View(mwi_mfl_coord)
+
+
+### Create SpatialPointsDataFrame (with CRS of 'leastcost_motor')
+mwi_mfl_spdf <- SpatialPointsDataFrame(coords = mwi_mfl_coord,
+                                       proj4string = crs(leastcost_motor),
+                                       data = mwi_mfl)
+
+mwi_mfl_spdf
+# Class: SpatialPointsDataFrame
+# CRS set
+
+
+### Create SpatialPoints object (with CRS of 'leastcost_motor')
+mwi_mfl_sp <- SpatialPoints(coords = mwi_mfl_coord,
+                            proj4string = crs(friction_surface_motor))
+
+mwi_mfl_sp
+# Class: SpatialPoints
+# CRS set
+
+
+
+# Crop to extent of 'friction_surface_motor'
+mwi_mfl_spdf_crop <- crop(mwi_mfl_spdf, friction_surface_motor)
+mwi_mfl_spdf_crop
+# NULL
+
 
 ```
 
