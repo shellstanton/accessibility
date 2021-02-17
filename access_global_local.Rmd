@@ -545,12 +545,10 @@ mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor)
 
 ```
 
-
 ### Calculate shortest paths
 
 Health facility data (healthfac) read in during setup stage 6.
 ```{r, warning=FALSE}
-
 # First calculate the transition matrix
 # Check the transitionFunction
 trans_motor <- transition(friction_surface_motor, transitionFunction = function(x){1/mean(x)}, directions = 8)
