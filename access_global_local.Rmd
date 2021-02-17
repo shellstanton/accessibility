@@ -488,8 +488,8 @@ View(mwi_mfl)
 class(mwi_mfl$LATITUDE)
 class(mwi_mfl$LONGITUDE)
 # Latitude and Longitude are character values: convert them to numeric
-mwi_mfl$LATITUDE <- as.numeric(mwi_mfl$LATITUDE)
-mwi_mfl$LONGITUDE <- as.numeric(mwi_mfl$LONGITUDE)
+mwi_mfl$LATITUDE <- as.numeric(as.character(mwi_mfl$LATITUDE))
+mwi_mfl$LONGITUDE <- as.numeric(as.character(mwi_mfl$LONGITUDE))
 # Check
 class(mwi_mfl$LATITUDE)
 class(mwi_mfl$LONGITUDE)
@@ -547,6 +547,7 @@ mwi_mfl_spdf_sf
 
 ## bbox needs to be cropped to aoi
 
+
 # Crop 
 mwi_mfl_spdf_sf_crop <- st_crop(mwi_mfl_spdf_sf, 
                                 c(xmin = bbxmin, 
@@ -554,15 +555,14 @@ mwi_mfl_spdf_sf_crop <- st_crop(mwi_mfl_spdf_sf,
                                   ymin = bbymin, 
                                   ymax = bbymax))
 ## Warnings:
-# bounding box has potentially an invalid value range for longlat dataalthough coordinates are longitude/latitude, # st_intersection assumes that they are planar
-# attribute variables are assumed to be spatially constant throughout all geometries
+# bounding box has potentially an invalid value range for longlat data although coordinates are longitude/latitude,
+# st_intersection assumes that they are planar attribute variables are assumed to be spatially constant throughout all geometries
+
+# Tried with st_bbox(healthfac): Same errors
+# Tried with aoi_polygon: Same errors:
                            
-
-
 mwi_mfl_spdf_sf_crop
 # bbox:           xmin: NA ymin: NA xmax: NA ymax: NA    ???
-
-
 
 
 ```
