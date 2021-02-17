@@ -158,6 +158,7 @@ These parameters will be used to calculate the median NDVI per pixel and clip to
 * Assign travel speed to traverse road pixels (obtained using OpenStreetMaps) by motor vehicle
 
 Walking travel speed.
+*Documentation on reasonable walking speeds needed*
 ```{r setup_walking_travel_speeds}
 
 ## Define walking speeds (in Km/h) expected for the following NDVI values:
@@ -389,14 +390,18 @@ We can directly download OSM road data for our aoi within R. The bounding box is
 ```{r osmdownload}
 
 ## define bounding box
-aoi_bbox = c(bbxmin, bbymin, bbxmax, bbymax)
+aoi_bbox = c(bbxmin, 
+             bbymin, 
+             bbxmax, 
+             bbymax)
 
 ## obtain road data
 q <- opq(bbox = aoi_bbox) %>%
      add_osm_feature(key = 'highway') %>%
      osmdata_sf()
 
-ggplot(q$osm_lines)+geom_sf()
+ggplot(q$osm_lines) + 
+  geom_sf()
 
 ```
 
@@ -427,7 +432,10 @@ ndviwalk_mps <- ndviwalk_kph/3.6
 ndviwalk_secs <- 42.43/ndviwalk_mps
 
 # Convert km/h to m/s
-ndviwalk_vec <- c(-1, 0.35, ndviwalk_secs[1], 0.35, 0.6, ndviwalk_secs[2], 0.6, 0.7, ndviwalk_secs[3], 0.7, 1, ndviwalk_secs[4])
+ndviwalk_vec <- c(-1, 0.35, ndviwalk_secs[1], 
+                  0.35, 0.6, ndviwalk_secs[2], 
+                  0.6, 0.7, ndviwalk_secs[3], 
+                  0.7, 1, ndviwalk_secs[4])
 
 ndviwalk_mat <- matrix(ndviwalk_vec, ncol = 3, byrow = TRUE)
 
@@ -487,7 +495,7 @@ AfriMapR
 # Read in Malawi health facility data
 # install.packages("readxl")
 library(readxl)
-mwi_mfl <- read_excel("./malawi_health_facility_data/malawi.xlsx")
+mwi_mfl <- read_excel("./malawi_health_facility_data/malawi_june_2020.xlsx")
 # Check
 # View(mwi_mfl)
 
@@ -529,18 +537,19 @@ class(mwi_mfl)
 # data.frame
 
 
-### Create SpatialPointsDataFrame (with CRS of 'friction_surface_motor')
+## Create SpatialPointsDataFrame (with CRS of 'friction_surface_motor')
 mwi_mfl_spdf <- mwi_mfl
-## there's a few points which aren't in lat/long format and should be removed
+# There's a few points which aren't in lat/long format and should be removed
 erroneous_list <- c("MC010002", "BT240003", "BT240005", "BT240006", "BLK170117", 
                     "BLK170288", "BLK170372", "MC010564", "MHG190985", "MHG191025")
+# Remove
 mwi_mfl_spdf <- mwi_mfl_spdf[which(!(mwi_mfl_spdf$CODE %in% erroneous_list)), ]
 
-## convert to a spatial object
+# Convert to a spatial object
 coordinates(mwi_mfl_spdf) <- ~ LONGITUDE + LATITUDE 
 proj4string(mwi_mfl_spdf) <- CRS("+proj=longlat +datum=WGS84 +no_defs ")
 
-## crop to extent of the raster
+# Crop to extent of 'friction_surface_motor' raster
 mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor))
 
 ```
@@ -578,7 +587,7 @@ ggplot()+
     geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
     scale_fill_brewer(palette = "YlGnBu")+
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
-    geom_sf(data=healthfac, size=2, colour="red")+
+    geom_sf(data=mwi_mfl_cropped_sf, size=2, colour="red")+
     guides(fill=guide_legend(title="Time (mins)"))
 
 ```
@@ -660,7 +669,7 @@ Reclassify 'leastcost_motor' raster to chosen time-boundary categorical zones.
 # 'rasterfromXYZ' function works only with three columns, so remove 'layer' column from 'lcm_df'
 lcm_df$layer = NULL
 # Check
-View(lcm_df)
+# View(lcm_df)
 
 # Create new raster from 'lcm_df' dataframe
 lcm_raster <- rasterFromXYZ(lcm_df)

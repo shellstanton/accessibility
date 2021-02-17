@@ -78,7 +78,7 @@ Raster data of interest:
 "Global friction surface enumerating land-based travel speed with access to motorized transport for a nominal year 2019 "
 and
 "Global friction surface enumerating land-based travel walking-only speed without access to motorized transport for a nominal year 2019 "
-*NOTE: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title...*
+*NOTE: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title... Now realise this is called 'trailing spaces'*
 
 
 Generate friction surface.
@@ -89,7 +89,7 @@ friction_surface <-
   malariaAtlas::getRaster(surface = "Global friction surface enumerating land-based travel walking-only speed without access to motorized transport for a nominal year 2019 ",
                           shp = aoi_polygon)
 
-# Note: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title...
+# Note: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title... Now realise this is called 'trailing spaces'
 
 # Adjust extent
 extent(friction_surface) <- extent(leastcost_motor) 
@@ -115,8 +115,73 @@ transition_matrix <- gdistance::geoCorrection(transition_matrix)
 Read in health facility data.
 ```{r health_facility_data}
 
-# Read in health facilty data
-healthfac <- st_read("./data/healthfacexample.shp")
+
+## Data: https://zenodo.org/record/3871224#.YCuhSC2cYlk
+# Downloaded Malawi health facility data and stored within folder "malawi_health_facility_data" (within working directory)
+
+# Read in Malawi health facility data
+# install.packages("readxl")
+library(readxl)
+mwi_mfl <- read_excel("./malawi_health_facility_data/malawi_june_2020.xlsx")
+# Check
+# View(mwi_mfl)
+
+# Remove 'Non-functional' facilities
+mwi_mfl <- subset(mwi_mfl, STATUS!= "Non-functional")
+# Check
+# View(mwi_mfl)
+class(mwi_mfl)
+
+# Convert to dataframe
+mwi_mfl <- as.data.frame(mwi_mfl)
+# Check
+class(mwi_mfl)
+# data.frame
+# Check
+# View(mwi_mfl)
+
+# Change class of LATITUDE and LONGITUDE columns (currently 'character') to 'numeric'
+class(mwi_mfl$LATITUDE)
+class(mwi_mfl$LONGITUDE)
+# Latitude and Longitude are character values: convert them to numeric
+mwi_mfl$LATITUDE <- as.numeric(as.character(mwi_mfl$LATITUDE))
+mwi_mfl$LONGITUDE <- as.numeric(as.character(mwi_mfl$LONGITUDE))
+# Check
+class(mwi_mfl$LATITUDE)
+class(mwi_mfl$LONGITUDE)
+# Both numeric
+class(mwi_mfl)
+# data.frame
+# View(mwi_mfl)
+
+# Remove any rows with 'NA' data within either LATITUDE or LONGITUDE columns
+# library(tidyr)
+mwi_mfl <- drop_na(mwi_mfl, "LATITUDE", "LONGITUDE")
+# Check
+# View(mwi_mfl)
+# Checked for 'NA' and no NA cells found, also equal number of rows
+class(mwi_mfl)
+# data.frame
+
+
+## Create SpatialPointsDataFrame (with CRS of 'friction_surface_motor')
+mwi_mfl_spdf <- mwi_mfl
+# There's a few points which aren't in lat/long format and should be removed
+erroneous_list <- c("MC010002", "BT240003", "BT240005", "BT240006", "BLK170117", 
+                    "BLK170288", "BLK170372", "MC010564", "MHG190985", "MHG191025")
+# Remove
+mwi_mfl_spdf <- mwi_mfl_spdf[which(!(mwi_mfl_spdf$CODE %in% erroneous_list)), ]
+
+# Convert to a spatial object
+coordinates(mwi_mfl_spdf) <- ~ LONGITUDE + LATITUDE 
+proj4string(mwi_mfl_spdf) <- CRS("+proj=longlat +datum=WGS84 +no_defs ")
+
+# Crop to extent of 'friction_surface_motor' raster
+mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor))
+
+# Convert to simple features
+mwi_mfl_cropped_sf <- st_as_sf(mwi_mfl_cropped)
+
 
 ```
 
@@ -125,7 +190,7 @@ Calculate cumulative cost.
 ```{r cumulative_cost}
 
 # Calculate the cumulative cost
-malaria_atlas_project_lcm <-  accCost(transition_matrix, as_Spatial(healthfac))
+malaria_atlas_project_lcm <-  accCost(transition_matrix, as_Spatial(mwi_mfl_cropped))
 
 writeRaster(malaria_atlas_project_lcm,
             "./malaria_atlas_project_outputs/malaria_atlas_project_lcm",
