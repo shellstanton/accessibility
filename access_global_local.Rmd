@@ -65,7 +65,8 @@ list.of.packages <- c("sf",
                       "geojsonio", 
                       "devtools", 
                       "rgee",
-                      "tidyr")
+                      "tidyr",
+                      "knitr")
 
 # Identify which CRAN packages aren't currently installed on client computers and store in object
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -82,7 +83,7 @@ As WorldPop packages cannot currently be downloaded via CRAN, these must be down
 GitHub packages.
 ```{r setup_GitHub_packages}
 
-## Download, install and load wpgpDownloadR: an R Package interface for downloading raster datasets from the WorldPop FTP.
+## Download, install and load packages 'wpgpDownloadR' and 'wpgpCovariates', needed for downloading raster datasets from the WorldPop FTP
 
 ## check if package is installed, if not, install
 if(!("devtools" %in% installed.packages())){
@@ -125,12 +126,11 @@ bbxmin <- 33.2
 bbxmax <- 33.8
 bbymin <- -11.29
 bbymax <- -10.73
-## 'EarthEngine Object: Geometry' created within markdown
+## 'EarthEngine Geometry Object' created within markdown
 
 # OR:
 # * Read in shapefile to define area of interest
 # aoi <- readOGR(dsn = "USER_DIRECTORY", layer = "USER_SHAPEFILE")
-
 
 ```
 
@@ -138,7 +138,7 @@ bbymax <- -10.73
 
 3. Setup: Landsat 8 parameters
 * Read in Landsat 8 data
-* Define start and end dates to filter data by
+* Define start and end dates to filter Landsat 8 data by
 *Landsat 8 data obtained using GEE*
 ```{r setup_landsat8_parameters}
 
@@ -489,6 +489,45 @@ writeRaster(friction_surface_motor,
 AfriMapR
 ```{r}
 
+# Install 'AfriMapR'afrimapr/afrihealthsites' package
+remotes::install_github("afrimapr/afrihealthsites")
+library(afrihealthsites)
+
+## WHO data
+mwi_healthfac_who <-  afrihealthsites(coi,
+                                      datasource = 'who')
+
+# Check
+# View(mwi_healthfac_who)
+
+# Covert to SpatialPointsDataFrame
+mwi_healthfac_who_spdf <- as(mwi_healthfac_who, "Spatial")
+# SpatialPointsDataFrame 
+
+# Crop to extent of 'friction_surface_motor' raster
+mwi_healthfac_who_spdf_cropped <- raster::crop(mwi_healthfac_who_spdf, y = extent(friction_surface_motor))
+
+
+
+## 'Healthsites' data
+mwi_healthfac_healthsites <-  afrihealthsites(coi,
+                                              datasource = 'healthsites')
+
+# Check
+# View(mwi_healthfac_healthsites)
+
+# Covert to SpatialPointsDataFrame
+mwi_healthfac_healthsites_spdf <- as(mwi_healthfac_healthsites, "Spatial")
+# SpatialPointsDataFrame 
+
+# Crop to extent of 'friction_surface_motor' raster
+mwi_healthfac_healthsites_spdf_cropped <- raster::crop(mwi_healthfac_healthsites_spdf, y = extent(friction_surface_motor))
+mwi_healthfac_healthsites_spdf_cropped
+# NULL = no healthfacility data for aoi?
+
+
+
+
 ## Data: https://zenodo.org/record/3871224#.YCuhSC2cYlk
 # Downloaded Malawi health facility data and stored within folder "malawi_health_facility_data" (within working directory)
 
@@ -547,10 +586,13 @@ mwi_mfl_spdf <- mwi_mfl_spdf[which(!(mwi_mfl_spdf$CODE %in% erroneous_list)), ]
 
 # Convert to a spatial object
 coordinates(mwi_mfl_spdf) <- ~ LONGITUDE + LATITUDE 
-proj4string(mwi_mfl_spdf) <- CRS("+proj=longlat +datum=WGS84 +no_defs ")
+proj4string(mwi_mfl_spdf) <- CRS("+proj=longlat +datum=WGS84 +no_defs")
 
 # Crop to extent of 'friction_surface_motor' raster
 mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor))
+# mwi_mfl_cropped
+# SpatialPointsDataFrame
+
 
 ```
 
@@ -563,7 +605,7 @@ Health facility data (healthfac) read in during setup stage 6.
 trans_motor <- transition(friction_surface_motor, transitionFunction = function(x){1/mean(x)}, directions = 8)
 
 # Then calculate the cumulative cost
-leastcost_motor <-  accCost(trans_motor, mwi_mfl_cropped)
+leastcost_motor <-  accCost(trans_motor, mwi_healthfac_who_spdf_cropped)
 
 writeRaster(leastcost_motor,
             "./outputs/leastcost_raster_motor",
@@ -581,12 +623,17 @@ lcm_df <- as.data.frame(leastcost_motor, xy = TRUE)
 
 lcm_df$mins <- lcm_df$layer/60
 
+# Create simple features POINT geometry from health facility data to plot
+healthfac_data_plot <- st_as_sf(mwi_healthfac_who_spdf_cropped)
+
+# Plot
 ggplot()+
     geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
     scale_fill_brewer(palette = "YlGnBu")+
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
-    geom_sf(data=mwi_mfl_cropped_sf, size=2, colour="red")+
+    geom_sf(data=healthfac_data_plot, size=2, colour="red")+
     guides(fill=guide_legend(title="Time (mins)"))
+
 
 ```
 
@@ -687,7 +734,7 @@ rcl_matrix <- c(0, 30, 1, # 30 minutes
                 60, 180, 3, # 3 hours
                 180, 360, 4, # 6 hours 
                 360, 720, 5, # 12 hours
-                720, 100000, 6 # 12+ hours
+                720, max(lcm_df$mins), 6 # 12+ hours
 )
 
 rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
@@ -766,8 +813,8 @@ lcm_rcl_zone_df$"% Population" <-
   
 
 # Check
-View(lcm_rcl_zone_df)
-print(lcm_rcl_zone_df)
+kable(lcm_rcl_zone_df,
+      caption = "Percent (%) XYZ...")
 
 ```
 

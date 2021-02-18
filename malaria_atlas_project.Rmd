@@ -190,7 +190,7 @@ Calculate cumulative cost.
 ```{r cumulative_cost}
 
 # Calculate the cumulative cost
-malaria_atlas_project_lcm <-  accCost(transition_matrix, as_Spatial(mwi_mfl_cropped))
+malaria_atlas_project_lcm <-  accCost(transition_matrix, as_Spatial(mwi_mfl_cropped_sf))
 
 writeRaster(malaria_atlas_project_lcm,
             "./malaria_atlas_project_outputs/malaria_atlas_project_lcm",
@@ -223,7 +223,7 @@ ggplot()+
     geom_raster(data=malaria_atlas_project_lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
     scale_fill_brewer(palette = "YlGnBu")+
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
-    geom_sf(data=healthfac, size=2, colour="red")+
+    geom_sf(data=mwi_mfl_cropped_sf, size=2, colour="red")+
     guides(fill=guide_legend(title="Time (mins)"))
 
 ```
@@ -398,7 +398,10 @@ malaria_atlas_project_zone_df$"% Population" <-
 # Check
 View(malaria_atlas_project_zone_df)
 print(malaria_atlas_project_zone_df)
-
+# install.packages("knitr")
+library(knitr)
+kable(malaria_atlas_project_zone_df,
+      caption = "Percent (%) XYZ...")
 
 ```
 
