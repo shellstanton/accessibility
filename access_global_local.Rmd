@@ -83,40 +83,65 @@ As WorldPop packages cannot currently be downloaded via CRAN, these must be down
 GitHub packages.
 ```{r setup_GitHub_packages}
 
-## Download, install and load packages 'wpgpDownloadR' and 'wpgpCovariates', needed for downloading raster datasets from the WorldPop FTP
+## Download, install and load packages:
+# * 'devtools', needed to download some packages from GitHub
+# * 'wpgpDownloadR' and 'wpgpCovariates', needed for downloading raster datasets from the WorldPop FTP
+# * 'afrimapr/afrihealthsites' package, needed for downloading healthcare facility data from AfriMapR/WHO
 
-## check if package is installed, if not, install
+## Check if package is installed, if not, install
+
+# 'devtools' package
 if(!("devtools" %in% installed.packages())){
 
-# Download/install 'devtools' package
  install.packages("devtools")
 
-  }
+}
 
+# 'wpgpDownloadR' package
 if(!("wpgpDownloadR" %in% installed.packages())){
 
-# Download/install 'wpgpDownloadR' package
  devtools::install_github("wpgp/wpgpDownloadR")
 
-  }
+}
 
+# 'wpgpCovariates' package
 if(!("wpgpCovariates" %in% installed.packages())){
 
-# Download/install 'wpgpCovariates' package
  devtools::install_github("wpgp/wpgpCovariates")
+  
+}
 
-  }
+# 'afriMapR'afrimapr/afrihealthsite' package
+if(!("afrimapr/afrihealthsites" %in% installed.packages())){
 
-# load 'wpgpDownloadR' package
+# 'afrimapr/afrihealthsites' package
+ remotes::install_github("afrimapr/afrihealthsites")
+  
+}
+
+## load packages
+library(devtools)
 library(wpgpDownloadR)
 library(wpgpCovariates)
+library(afrihealthsites)
 
 ```
 All required packages should now be loaded.
 
 
-2. Setup: Area of interest (aoi)
-* Detail limits for a bounding box (lat/long maximum and minimum values, in WGS84) to be used as area of interest (aoi)
+2. Setup: Country of interest (coi), used to obtain:
+* WHO health facility data, downloaded via AfriMapR within script
+* Population data, downlaoded via WorldPop within script
+```{r setup_country_of_intersest}
+
+# * Set country of interest (coi) using British English spelling
+coi <- "Malawi"
+
+```
+
+
+3. Setup: Area of interest (aoi)
+* Detail limits for a bounding box (lat/long maximum and minimum values, using WGS84 projection) to be used as area of interest (aoi)
 OR
 * Read in shapefile to define area of interest
 ```{r setup_area_of_interest}
@@ -135,11 +160,10 @@ bbymax <- -10.73
 ```
 
 
-
-3. Setup: Landsat 8 parameters
-* Read in Landsat 8 data
+4. Setup: Landsat 8 parameters
+* Read in Landsat 8 data, obtrained using Google Earth Engine (GEE) *download from within R?*
 * Define start and end dates to filter Landsat 8 data by
-*Landsat 8 data obtained using GEE*
+This data will be used to calculate the median NDVI per pixel. NDVI values will then be used to generate friction surface and calculate travel times
 ```{r setup_landsat8_parameters}
 
 # * Read in landsat 8 data
@@ -150,10 +174,9 @@ start_date <-  "2018-06-01"
 end_date   <-  "2018-09-30"
 
 ```
-These parameters will be used to calculate the median NDVI per pixel and clip to the area of interest (aoi)
 
 
-4. Setup: Travel speeds
+5. Setup: Travel speeds
 * Assign walking speeds to traverse NDVI pixels (non-road), depending on NDVI value
 * Assign travel speed to traverse road pixels (obtained using OpenStreetMaps) by motor vehicle
 
@@ -180,6 +203,7 @@ walk_speed_4 <- 1.49
 ```
 
 Road travel speed by motor vehicle.
+*OSM national speed limit data*
 ```{r setup_walking_travel_speeds}
 
 ## Define road travel speeds (in Km/h) for the following road types:
@@ -195,26 +219,12 @@ minor_road_speed <- 20
 ```
 
 
-5. Setup: Health facility data
-Add in health facility locations. 
-*Currently reading in the facilities around Vwaza that have rHAT diagnostics, potentially edit this to use afrimapr?*
-```{r setup_health_facility_data}
-
-healthfac <- st_read("./data/healthfacexample.shp")
-
-```
-
-
 6. Setup: Population parameters
-* Set country of interest (coi) using British English spelling
 * Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
 * Select and set covariate of interest by viewing dataframe of available covariates dowdnloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
 ```{r setup_population_parameters}
 
-# * Set country of interest (coi) using British English spelling
-coi <- "Malawi"
-
-# Run 'population_data' function; constructed to return dataframe of available covariates downloaded from WorldPop FTP (for country of interest)
+# Run 'population_data' function; constructed to return dataframe of available covariates downloaded from WorldPop FTP (for country of interest) based on 'coi', defined in setup stage 5: Health facility data
 population_data <- 
   
   function(coi){
@@ -245,9 +255,9 @@ covariate <- "ppp_2020"
 All setup stages now complete.
 
 
+
 ### NDVI data generation using rgee
 I keep having issues with the rgee package, so I suggest at some point we split this Rmd file so that we keep the GEE part in one file, and the cost-distance surface generation in another. Users can then either have the option of generating the NDVI in R, or using GEE directly, with the link to the code provided.
-
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once, but I keep having issues and have to start from scratch. 
 ```{r, eval=F}
@@ -486,12 +496,14 @@ writeRaster(friction_surface_motor,
 ```
 
 
-AfriMapR
+#### Heatlh facility data
+Downloads data and locations of documented health facilities within country of interest and crops to area of interest
 ```{r}
 
-# Install 'AfriMapR'afrimapr/afrihealthsites' package
-remotes::install_github("afrimapr/afrihealthsites")
-library(afrihealthsites)
+## Josh data
+# healthfac <- st_read("./data/healthfacexample.shp")
+
+
 
 ## WHO data
 mwi_healthfac_who <-  afrihealthsites(coi,
@@ -596,16 +608,15 @@ mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor)
 
 ```
 
-### Calculate shortest paths
 
-Health facility data (healthfac) read in during setup stage 6.
+### Calculate shortest paths
 ```{r, warning=FALSE}
 # First calculate the transition matrix
 # Check the transitionFunction
 trans_motor <- transition(friction_surface_motor, transitionFunction = function(x){1/mean(x)}, directions = 8)
 
 # Then calculate the cumulative cost
-leastcost_motor <-  accCost(trans_motor, mwi_healthfac_who_spdf_cropped)
+leastcost_motor <-  accCost(trans_motor, mwi_mfl_cropped)
 
 writeRaster(leastcost_motor,
             "./outputs/leastcost_raster_motor",
@@ -624,7 +635,7 @@ lcm_df <- as.data.frame(leastcost_motor, xy = TRUE)
 lcm_df$mins <- lcm_df$layer/60
 
 # Create simple features POINT geometry from health facility data to plot
-healthfac_data_plot <- st_as_sf(mwi_healthfac_who_spdf_cropped)
+healthfac_data_plot <- st_as_sf(mwi_mfl_cropped)
 
 # Plot
 ggplot()+
