@@ -134,7 +134,7 @@ All required packages should now be loaded.
 * Population data, downlaoded via WorldPop within script
 ```{r setup_country_of_intersest}
 
-# * Set country of interest (coi) using British English spelling
+# * Set country of interest (coi) using British English spelling and capitalised first letter
 coi <- "Malawi"
 
 ```
@@ -203,7 +203,7 @@ walk_speed_4 <- 1.49
 ```
 
 Road travel speed by motor vehicle.
-*OSM national speed limit data*
+*OSM national speed limit data needed*
 ```{r setup_walking_travel_speeds}
 
 ## Define road travel speeds (in Km/h) for the following road types:
@@ -260,6 +260,7 @@ All setup stages now complete.
 I keep having issues with the rgee package, so I suggest at some point we split this Rmd file so that we keep the GEE part in one file, and the cost-distance surface generation in another. Users can then either have the option of generating the NDVI in R, or using GEE directly, with the link to the code provided.
 
 This first bit is all about connecting to GEE via the rgee package. You should only need to run this next part once, but I keep having issues and have to start from scratch. 
+*Needed in setup?*
 ```{r, eval=F}
 
 ## Only need to run once
@@ -275,17 +276,14 @@ Then, initialise GEE. This will check whether you have everything set up to use 
 We then initialise the rgee package. Once rgee is installed I believe you only need to do this once.
 
 Note that you need to link to a Google account that has been given GEE access to be able to complete this stage. As we'll also be using Google Drive for downloading and uploading data, we also need to include 'drive=TRUE'. 
-*Include chunk in setup? - To setup GoogleDrive account?*
+*Needed in setup? - To setup GoogleDrive account?*
 ```{r, eval=F}
 
 ee_Initialize(drive = TRUE)
 
 ```
-
-
 Now we can use R to run code on Google Earth Engine. Note that lots of examples of translating GEE syntax to be used in rgee can be found here url{https://csaybar.github.io/rgee-examples/}.
 
-*Area of interst (aoi) defined during setup stages*
 
 Then make this into a polygon by using xy combinations for each corner of the area of interest.
 ```{r, eval=F}
@@ -500,7 +498,6 @@ writeRaster(friction_surface_motor,
 Downloads data and locations of documented health facilities within country of interest and crops to area of interest
 ```{r}
 
-## Josh data
 # healthfac <- st_read("./data/healthfacexample.shp")
 
 
@@ -616,7 +613,7 @@ mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor)
 trans_motor <- transition(friction_surface_motor, transitionFunction = function(x){1/mean(x)}, directions = 8)
 
 # Then calculate the cumulative cost
-leastcost_motor <-  accCost(trans_motor, mwi_mfl_cropped)
+leastcost_motor <-  accCost(trans_motor, mwi_healthfac_who_spdf_cropped)
 
 writeRaster(leastcost_motor,
             "./outputs/leastcost_raster_motor",
@@ -635,7 +632,7 @@ lcm_df <- as.data.frame(leastcost_motor, xy = TRUE)
 lcm_df$mins <- lcm_df$layer/60
 
 # Create simple features POINT geometry from health facility data to plot
-healthfac_data_plot <- st_as_sf(mwi_mfl_cropped)
+healthfac_data_plot <- st_as_sf(mwi_healthfac_who_spdf_cropped)
 
 # Plot
 ggplot()+
@@ -659,6 +656,7 @@ Download population data (.tif) for country and covariate of interest (Malawi / 
 ```{r download_population_data_and_create_raster}
 
 # Obtain ISO3 country code for country of interest (coi) using 'wpgpListCountries' function
+library(wpgpDownloadR)
 ISO3_df <- wpgpListCountries()
   
 # Identify ISO3 country code for country of interest (coi) and store as object
@@ -671,9 +669,10 @@ pop_data <-
                         covariate = covariate, 
                         destDir = "./WorldPop")
 
-# Note: Downloaded .tif is ~50 MB: This is the entire country of Malawi
+# pop_data <- "./WorldPop/mwi_ppp_2020.tif"
 
-# Can just bbox be downloaded?
+# Note: Downloaded .tif is ~50 MB: This is the entire country of Malawi
+# *Can just bbox be downloaded?*
 
 # Create raster
 pop_data <- raster(pop_data)
@@ -800,7 +799,7 @@ lcm_rcl_zone_df$Zone <- c("< 30 minutes",
                           "1 hour - 3 hours",
                           "3 hours - 6 hours",
                           "6 hours - 12 hours",
-                          "> 12 hours")
+                          "12 hours - 24 hours")
 
 # Add 'Total Population'  column
 lcm_rcl_zone_df$" Total Population" <-
@@ -824,11 +823,114 @@ lcm_rcl_zone_df$"% Population" <-
   
 
 # Check
-kable(lcm_rcl_zone_df,
-      caption = "Percent (%) XYZ...")
+lcm_rcl_zone_df
+
+# Check
+FS_output <- kable(lcm_rcl_zone_df,
+                   caption = "Percent (%) XYZ...")
+
+FS_output
 
 ```
 
+
+Plot bar plot to visualise.
+```{r}
+
+# Check
+lcm_rcl_zone_df
+
+# Create new dataframe
+bar_plot_df <- data.frame(c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours"),
+                          lcm_rcl_zone_df$"% Population")
+  
+# Check  
+bar_plot_df  
+
+# Rename columns 
+colnames(bar_plot_df)
+names(bar_plot_df)[1] <- "Zone"
+names(bar_plot_df)[2] <- "% Population"
+colnames(bar_plot_df)
+
+# Check  
+bar_plot_df  
+
+# Create bar plot
+FS_barplot <- 
+  
+  ggplot(data = bar_plot_df, aes(x = bar_plot_df$Zone, y = bar_plot_df$`% Population`)) +
+  geom_bar(aes(fill = "% Population"), width = 0.4, position = position_dodge(width=0.5), stat="identity") +
+  scale_x_discrete(limits = bar_plot_df$Zone) +
+  theme_light() +
+  ylab("Percent (%) of population") +
+  xlab("Time-boundary category") +
+  ggtitle("XYZ") +
+  theme(plot.title = element_text(size = 9),
+        legend.title = element_blank(),
+        axis.title=element_text(size = 9),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+
+FS_barplot
+
+```
+
+
+Comparison Bar Plot (*Delete*)
+```{r}
+
+
+# Create  dataframe
+bar_plot_df <- data.frame(c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours"),
+                          lcm_rcl_zone_df$"% Population",
+                          c(37, 65.4, 90.3, 97.3, 99.9, 100))
+
+# Check  
+bar_plot_df  
+
+# Rename columns 
+colnames(bar_plot_df)
+names(bar_plot_df)[1] <- "Zone"
+names(bar_plot_df)[2] <- "% Population: WHO database"
+names(bar_plot_df)[3] <- "% Population: MFL database"
+colnames(bar_plot_df)
+
+# Check  
+bar_plot_df  
+
+# Melt using `melt()`function from `reshape2` package
+# library(reshape2)
+bar_plot_df <- melt(bar_plot_df)
+# Check
+View(bar_plot_df)
+
+
+# Create bar plot
+FS_barplot <- 
+  
+  ggplot(data = bar_plot_df, aes(Zone, value)) +
+  geom_bar(aes(fill = variable), width = 0.4, position = position_dodge(width=0.5), stat="identity") +
+  scale_x_discrete(limits = bar_plot_df$Zone[1:6]) +
+  theme_light() +
+  ylab("Percent (%) of population") +
+  xlab("Time-boundary category (Travel time from closest-proximity health facility)") +
+  ggtitle("Percent (%) of population within area of interest residing within pre-defined time-boundaries of 
+the closest-proximity health facility according to health facility data obtained from World Health 
+Organisation (WHO) and Master Health Facility (MFL) Registry of Malawi databases") +
+  theme(plot.title = element_text(size = 9, hjust = 0.5),
+        legend.title = element_blank(),
+        axis.title=element_text(size = 9),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_discrete(labels = c("WHO database", "MFL database"))
+
+
+# Check
+FS_barplot
+
+
+```
 
 
 

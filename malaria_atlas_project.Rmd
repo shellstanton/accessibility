@@ -70,7 +70,7 @@ Check list of avaliable raster datasets
 ```{r}
 
 # Generate and check list
-# available_rasters <- listRaster(printed = TRUE)
+available_rasters <- listRaster(printed = TRUE)
 View(available_rasters)
 
 ```
@@ -86,7 +86,7 @@ Generate friction surface.
 
 # Generate friction surface
 friction_surface <- 
-  malariaAtlas::getRaster(surface = "Global friction surface enumerating land-based travel walking-only speed without access to motorized transport for a nominal year 2019 ",
+  malariaAtlas::getRaster(surface = "Global friction surface enumerating land-based travel speed with access to motorized transport for a nominal year 2019 ",
                           shp = aoi_polygon)
 
 # Note: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title... Now realise this is called 'trailing spaces'
@@ -98,6 +98,9 @@ extent(friction_surface) == extent(friction_surface)
 
 # Check
 plot(friction_surface)
+
+res(friction_surface)
+# 0.008335617 0.008362377
 
 ```
 
@@ -114,7 +117,6 @@ transition_matrix <- gdistance::geoCorrection(transition_matrix)
 
 Read in health facility data.
 ```{r health_facility_data}
-
 
 ## Data: https://zenodo.org/record/3871224#.YCuhSC2cYlk
 # Downloaded Malawi health facility data and stored within folder "malawi_health_facility_data" (within working directory)
@@ -255,6 +257,7 @@ pop_data <- raster(pop_data)
 # Check
 pop_data
 # CRS assigned: WGS84
+plot(pop_data)
 
 ```
 
@@ -268,18 +271,18 @@ res(pop_data)
 
 # Determine 'leastcost_motor' resolution
 leastcost_motor
-res(malaria_atlas_project_lcm)
+res(leastcost_motor)
 # 0.0002694946 0.0002694946
 
 ## Use 'resample' function to:
 # * Resample 'pop_data' to match resolution of 'leastcost_motor'
 # * Clip 'pop_data' to extent of 'leastcost_motor'
-malaria_atlas_project_pop_data <- resample(pop_data, malaria_atlas_project_lcm, method = "bilinear")
+malaria_atlas_project_pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
 
 # Check
-res(malaria_atlas_project_pop_data) == res(malaria_atlas_project_lcm)
+res(malaria_atlas_project_pop_data) == res(leastcost_motor)
 # True
-extent(malaria_atlas_project_pop_data) == extent(malaria_atlas_project_lcm)
+extent(malaria_atlas_project_pop_data) == extent(leastcost_motor)
 # True
 
 # Check CRS
@@ -287,17 +290,16 @@ crs(malaria_atlas_project_pop_data)
 # WGS84
 
 # Visualise raster
-# plot(pop_data)
+# plot(malaria_atlas_project_pop_data)
 
 ```
 
 
-Reclassify 'leastcost_motor' raster to chosen time-boundary categorical zones.
+Reclassify 'malaria_atlas_project_lcm' raster to chosen time-boundary categorical zones.
 ```{r reclassify}
 
 ## Create new raster from 'malaria_atlas_project_lcm_df' dataframe
 # 'Rename 'layers' column
-
 names(malaria_atlas_project_lcm_df)[3] <- "mins"
 # Check
 View(malaria_atlas_project_lcm_df)
@@ -345,7 +347,7 @@ crs(malaria_atlas_project_lcm_df_raster_rcl)
 
 # Check as data.frame
 malaria_atlas_project_lcm_df_raster_rcl_df <- as.data.frame(malaria_atlas_project_lcm_df_raster_rcl, xy = TRUE)
-# View(lcm_rcl_pop_data_df)
+View(lcm_rcl_pop_data_df)
 
 ```
 
@@ -353,6 +355,9 @@ malaria_atlas_project_lcm_df_raster_rcl_df <- as.data.frame(malaria_atlas_projec
 Determine population within each time-boundary zone. Summate the data to give total number of individuals within chosen time-boundary categorical zones and calculate % of total population within chosen time-boundary categorical zones.
 *Create for-loops?*
 ```{r determine_population_within_time-boundary_zones}
+
+# Check
+# View(malaria_atlas_project_lcm_df_raster_rcl_df)
 
 # Determine population (within 'pop_data' raster), within time-boundary  zones (within 'malaria_atlas_project_lcm_df_raster_rcl') using 'zonal' function 
 malaria_atlas_project_zone <- zonal(malaria_atlas_project_pop_data, malaria_atlas_project_lcm_df_raster_rcl, fun = sum)
