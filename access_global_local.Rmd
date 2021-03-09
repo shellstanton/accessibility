@@ -219,19 +219,7 @@ minor_road_speed <- 20
 ```
 
 
-6. Health facility data
-```{r}
-
-```
-
-
-
-
-
-
-
-
-7. Setup: Population parameters
+6. Setup: Population parameters
 * Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
 * Select and set covariate of interest by viewing dataframe of available covariates dowdnloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
 ```{r setup_population_parameters}
