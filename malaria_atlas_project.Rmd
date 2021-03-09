@@ -222,7 +222,7 @@ names(malaria_atlas_project_lcm_df)[3] <- "mins"
 
 # Plot to visualise
 ggplot()+
-    geom_raster(data=malaria_atlas_project_lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
+    geom_raster(data=malaria_atlas_project_lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,360,720,max(mins)))))+
     scale_fill_brewer(palette = "YlGnBu")+
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
     geom_sf(data=mwi_mfl_cropped_sf, size=2, colour="red")+

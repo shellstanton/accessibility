@@ -111,7 +111,7 @@ if(!("wpgpCovariates" %in% installed.packages())){
   
 }
 
-# 'afriMapR'afrimapr/afrihealthsite' package
+# 'afriMapR'afrimapr/afrihealthsites' package
 if(!("afrimapr/afrihealthsites" %in% installed.packages())){
 
 # 'afrimapr/afrihealthsites' package
@@ -161,7 +161,7 @@ bbymax <- -10.73
 
 
 4. Setup: Landsat 8 parameters
-* Read in Landsat 8 data, obtrained using Google Earth Engine (GEE) *download from within R?*
+* Read in Landsat 8 data, obtained using Google Earth Engine (GEE) *download from within R?*
 * Define start and end dates to filter Landsat 8 data by
 This data will be used to calculate the median NDVI per pixel. NDVI values will then be used to generate friction surface and calculate travel times
 ```{r setup_landsat8_parameters}
@@ -219,7 +219,19 @@ minor_road_speed <- 20
 ```
 
 
-6. Setup: Population parameters
+6. Health facility data
+```{r}
+
+```
+
+
+
+
+
+
+
+
+7. Setup: Population parameters
 * Obtain ISO3 country code for country of interest (coi), which is then used to generate covariate of interest 
 * Select and set covariate of interest by viewing dataframe of available covariates dowdnloaded from WorldPop FTP (for country of interest), which is used to download population data from the WorldPop FTP
 ```{r setup_population_parameters}
@@ -411,6 +423,8 @@ q <- opq(bbox = aoi_bbox) %>%
 ggplot(q$osm_lines) + 
   geom_sf()
 
+
+
 ```
 
 
@@ -516,6 +530,10 @@ mwi_healthfac_who_spdf <- as(mwi_healthfac_who, "Spatial")
 # Crop to extent of 'friction_surface_motor' raster
 mwi_healthfac_who_spdf_cropped <- raster::crop(mwi_healthfac_who_spdf, y = extent(friction_surface_motor))
 
+HF_list_WHO <- as.data.frame(mwi_healthfac_who_spdf_cropped)
+View(HF_list_WHO)
+kable(HF_list_WHO)
+
 
 
 ## 'Healthsites' data
@@ -601,6 +619,8 @@ proj4string(mwi_mfl_spdf) <- CRS("+proj=longlat +datum=WGS84 +no_defs")
 mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor))
 # mwi_mfl_cropped
 # SpatialPointsDataFrame
+HF_list_MFL <- as.data.frame(mwi_mfl_cropped)
+kable(HF_list_MFL)
 
 
 ```
@@ -636,7 +656,7 @@ healthfac_data_plot <- st_as_sf(mwi_healthfac_who_spdf_cropped)
 
 # Plot
 ggplot()+
-    geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,240,300,max(mins)))))+
+    geom_raster(data=lcm_df, aes(x = x, y = y, fill = cut(mins, c(0,30,60,120,180,360,720,max(mins)))))+
     scale_fill_brewer(palette = "YlGnBu")+
     geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
     geom_sf(data=healthfac_data_plot, size=2, colour="red")+
@@ -738,7 +758,7 @@ lcm_raster <- rasterFromXYZ(lcm_df)
 # * 1 hour - 3 hours
 # * 3 hours - 6 hours
 # * 6 hours - 12 hours
-# * > 12 hours
+# * 12 hours - 24 hours
 rcl_matrix <- c(0, 30, 1, # 30 minutes
                 30, 60, 2, # 1 hour
                 60, 180, 3, # 3 hours
@@ -878,7 +898,7 @@ FS_barplot
 ```
 
 
-Comparison Bar Plot (*Delete*)
+HF comparison Bar Plot (*Delete*)
 ```{r}
 
 
@@ -919,9 +939,9 @@ FS_barplot <-
   ggtitle("Percent (%) of population within area of interest residing within pre-defined time-boundaries of 
 the closest-proximity health facility according to health facility data obtained from World Health 
 Organisation (WHO) and Master Health Facility (MFL) Registry of Malawi databases") +
-  theme(plot.title = element_text(size = 9, hjust = 0.5),
+  theme(plot.title = element_text(size = 10, hjust = 0.5),
         legend.title = element_blank(),
-        axis.title=element_text(size = 9),
+        axis.title=element_text(size = 10),
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_fill_discrete(labels = c("WHO database", "MFL database"))
 
@@ -929,10 +949,74 @@ Organisation (WHO) and Master Health Facility (MFL) Registry of Malawi databases
 # Check
 FS_barplot
 
+```
+
+
+MAP comparison Bar Plot (*Delete*)
+```{r}
+
+
+# Create  dataframe
+bar_plot_MAP_df <- data.frame(c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours"),
+                          c(37, 65.4, 90.3, 97.3, 99.9, 100),
+                          c(96.3, 99.2, 100, 100, 100, 100))
+
+# Check  
+bar_plot_MAP_df  
+
+# Rename columns 
+colnames(bar_plot_MAP_df)
+names(bar_plot_MAP_df)[1] <- "Zone"
+names(bar_plot_MAP_df)[2] <- "% Population: Our friction surface"
+names(bar_plot_MAP_df)[3] <- "% Population: Malaria Atlas Project friction surface"
+colnames(bar_plot_MAP_df)
+
+# Check  
+bar_plot_MAP_df  
+
+# Melt using `melt()`function from `reshape2` package
+# library(reshape2)
+bar_plot_MAP_df <- melt(bar_plot_MAP_df)
+# Check
+View(bar_plot_MAP_df)
+
+
+# Create bar plot
+FS_MAP_barplot <- 
+  
+  ggplot(data = bar_plot_MAP_df, aes(Zone, value)) +
+  geom_bar(aes(fill = variable), width = 0.4, position = position_dodge(width=0.5), stat="identity") +
+  scale_x_discrete(limits = bar_plot_df$Zone[1:6]) +
+  theme_light() +
+  ylab("Percent (%) of population") +
+  xlab("Time-boundary category (Travel time from closest-proximity health facility)") +
+  ggtitle("Percent (%) of population within area of interest residing within pre-defined time-boundaries 
+  of the closest-proximity health facility according to our friction surface and the Malaria Atlas 
+  Project friction surface when using health facility data obtained from the Master Health Facility 
+  (MFL) Registry of Malawi") +
+  theme(plot.title = element_text(size = 10, hjust = 0.5),
+        legend.title = element_blank(),
+        axis.title=element_text(size = 9),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_discrete(labels = c("Our friction surface", "Malaria Atlas Project 
+friction surface"))
+
+
+# Check
+FS_MAP_barplot
 
 ```
 
 
+```{r}
+
+bound_districts <- 
+  st_read("Bounds/mwi_1.gpkg", quiet = TRUE)
+
+plot(st_geometry(bound_districts))
+
+
+```
 
 
 
