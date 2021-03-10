@@ -812,6 +812,7 @@ lcm_rcl_zone_df
 # Create new dataframe detailing number and percent (%) of population residing within pre-defined time-boundaries from the closest proximity health centre
 time_boundaries <- c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours")
 
+# Create dataframe
 FS_output <- data.frame(time_boundaries,
                         lcm_rcl_zone_df$` Total Population`,
                         lcm_rcl_zone_df$`% Population`)
@@ -822,10 +823,11 @@ names(FS_output)[2] <- "Number population"
 names(FS_output)[3] <- "Percent (%) population"
 
 # Check output using Kable formatting
-FS_output <- kable(FS_output,
+FS_output_kable <- kable(FS_output,
                    caption = "Number and percent (%) of population residing within pre-defined time-boundaries from the closest proximity health centre")
 
-FS_output
+# Check
+FS_output_kable
 
 ```
 
@@ -833,24 +835,21 @@ FS_output
 17. Create blot bar plot to visualise % of total population within chosen time-boundary categorical zones
 ```{r}
 
-# Check
-lcm_rcl_zone_df
-
 # Create new dataframe
-bar_plot_df <- data.frame(c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours"),
-                          lcm_rcl_zone_df$"% Population")
-  
+bar_plot_df <- data.frame(FS_output$`Time boundaries`,
+                          FS_output$`Percent (%) population`)
+
 # Check  
-bar_plot_df  
+# bar_plot_df  
 
 # Rename columns 
 colnames(bar_plot_df)
-names(bar_plot_df)[1] <- "Zone"
+names(bar_plot_df)[1] <- "Time-boundary"
 names(bar_plot_df)[2] <- "% Population"
 colnames(bar_plot_df)
 
 # Check  
-bar_plot_df  
+# bar_plot_df  
 
 # Create bar plot
 FS_barplot <- 
@@ -861,14 +860,15 @@ FS_barplot <-
   theme_light() +
   ylab("Percent (%) of population") +
   xlab("Time-boundary category") +
-  ggtitle("XYZ") +
+  ggtitle("Percent (%) of population residing within pre-defined time-boundaries from the closest 
+proximity health centre") +
   theme(plot.title = element_text(size = 9),
         legend.title = element_blank(),
         axis.title=element_text(size = 9),
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 
-
+# Check
 FS_barplot
 
 ```
