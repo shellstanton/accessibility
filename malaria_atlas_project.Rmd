@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-Install/load required packages.
+Download/install/load required packages.
 ```{r packages}
 
 # install.packages("gdistance")
@@ -32,7 +32,7 @@ library(ggplot2)
 library(malariaAtlas)
 library(sp)
 
-## Plot defaults
+# Plot defaults
 theme_set(theme_minimal(base_size=14))
 
 ```
@@ -66,7 +66,7 @@ plot(aoi_polygon, axes = TRUE)
 ```
 
 
-Check list of avaliable raster datasets
+Check list of available raster datasets
 ```{r}
 
 # Generate and check list
@@ -78,7 +78,6 @@ Raster data of interest:
 "Global friction surface enumerating land-based travel speed with access to motorized transport for a nominal year 2019 "
 and
 "Global friction surface enumerating land-based travel walking-only speed without access to motorized transport for a nominal year 2019 "
-*NOTE: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title... Now realise this is called 'trailing spaces'*
 
 
 Generate friction surface.
@@ -91,7 +90,7 @@ friction_surface <-
 
 # Note: Strangely, title had to be copied exactly from viewing dataframe in new tab (View(available_rasters)) and found that a space was needed at the end of title, otherwise getRaster function would not recognise title... Now realise this is called 'trailing spaces'
 
-# Adjust extent
+# Adjust extent to that of 'leastcost_motor'
 extent(friction_surface) <- extent(leastcost_motor) 
 extent(friction_surface) == extent(friction_surface)
 # TRUE
@@ -148,6 +147,7 @@ class(mwi_mfl$LONGITUDE)
 # Latitude and Longitude are character values: convert them to numeric
 mwi_mfl$LATITUDE <- as.numeric(as.character(mwi_mfl$LATITUDE))
 mwi_mfl$LONGITUDE <- as.numeric(as.character(mwi_mfl$LONGITUDE))
+
 # Check
 class(mwi_mfl$LATITUDE)
 class(mwi_mfl$LONGITUDE)
@@ -165,9 +165,9 @@ mwi_mfl <- drop_na(mwi_mfl, "LATITUDE", "LONGITUDE")
 class(mwi_mfl)
 # data.frame
 
-
-## Create SpatialPointsDataFrame (with CRS of 'friction_surface_motor')
+# Create SpatialPointsDataFrame (with CRS of 'friction_surface_motor')
 mwi_mfl_spdf <- mwi_mfl
+
 # There's a few points which aren't in lat/long format and should be removed
 erroneous_list <- c("MC010002", "BT240003", "BT240005", "BT240006", "BLK170117", 
                     "BLK170288", "BLK170372", "MC010564", "MHG190985", "MHG191025")
@@ -194,6 +194,7 @@ Calculate cumulative cost.
 # Calculate the cumulative cost
 malaria_atlas_project_lcm <-  accCost(transition_matrix, as_Spatial(mwi_mfl_cropped_sf))
 
+# Create raster
 writeRaster(malaria_atlas_project_lcm,
             "./malaria_atlas_project_outputs/malaria_atlas_project_lcm",
             format = "GTiff", 
@@ -212,7 +213,7 @@ malaria_atlas_project_lcm_df <- as.data.frame(malaria_atlas_project_lcm, xy = TR
 
 # Check
 # View(malaria_atlas_project_lcm_df)
-# 'layers' column appears to already by in minutes 
+# 'layers' column appears to already be in minutes 
 
 # Rename 'layers' column to 'mins'
 names(malaria_atlas_project_lcm_df)[3] <- "mins"
@@ -235,7 +236,7 @@ Download population data (.tif) for country and covariate of interest (Malawi / 
 ```{r download_population_data_and_create_raster}
 
 # Obtain ISO3 country code for country of interest (coi) using 'wpgpListCountries' function
-ISO3_df <- wpgpListCountries()
+# ISO3_df <- wpgpListCountries()
   
 # Identify ISO3 country code for country of interest (coi) and store as object
 ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
@@ -316,13 +317,13 @@ malaria_atlas_project_lcm_df_raster <- rasterFromXYZ(malaria_atlas_project_lcm_d
 # * 1 hour - 3 hours
 # * 3 hours - 6 hours
 # * 6 hours - 12 hours
-# * > 12 hours
+# * 12 hours - 24 hours
 rcl_matrix <- c(0, 30, 1, # 30 minutes
                 30, 60, 2, # 1 hour
                 60, 180, 3, # 3 hours
                 180, 360, 4, # 6 hours 
                 360, 720, 5, # 12 hours
-                720, 100000, 6 # 12+ hours
+                720, 10000, 6 # 12+ hours
 )
 
 rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
@@ -347,13 +348,12 @@ crs(malaria_atlas_project_lcm_df_raster_rcl)
 
 # Check as data.frame
 malaria_atlas_project_lcm_df_raster_rcl_df <- as.data.frame(malaria_atlas_project_lcm_df_raster_rcl, xy = TRUE)
-View(lcm_rcl_pop_data_df)
+# View(lcm_rcl_pop_data_df)
 
 ```
 
 
 Determine population within each time-boundary zone. Summate the data to give total number of individuals within chosen time-boundary categorical zones and calculate % of total population within chosen time-boundary categorical zones.
-*Create for-loops?*
 ```{r determine_population_within_time-boundary_zones}
 
 # Check
@@ -398,15 +398,71 @@ malaria_atlas_project_zone_df$"% Population" <-
     sum(malaria_atlas_project_zone_df$"Zone Population"[1:3]) / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100,
     sum(malaria_atlas_project_zone_df$"Zone Population"[1:4]) / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100,
     sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) / sum(malaria_atlas_project_zone_df$"Zone Population"[1:5]) * 100)
-  
 
 # Check
-View(malaria_atlas_project_zone_df)
-print(malaria_atlas_project_zone_df)
-# install.packages("knitr")
-library(knitr)
-kable(malaria_atlas_project_zone_df,
-      caption = "Percent (%) XYZ...")
+malaria_atlas_project_zone_df
+
+# Create new dataframe detailing number and percent (%) of population residing within pre-defined time-boundaries from the closest proximity health centre
+time_boundaries <- c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours")
+
+# Create dataframe
+MAP_FS_output <- data.frame(time_boundaries,
+                            malaria_atlas_project_zone_df$` Total Population`,
+                            malaria_atlas_project_zone_df$`% Population`)
+  
+# Rename columns
+names(MAP_FS_output)[1] <- "Time boundaries"
+names(MAP_FS_output)[2] <- "Number population"
+names(MAP_FS_output)[3] <- "Percent (%) population"
+
+# Check output using Kable formatting
+MAP_FS_output_kable <- kable(MAP_FS_output,
+                             caption = "Number and percent (%) of population residing within pre-defined time-boundaries from the closest proximity health centre")
+
+# Check
+MAP_FS_output_kable
+
+```
+
+
+Create blot bar plot to visualise % of total population within chosen time-boundary categorical zones
+```{r}
+
+# Create new dataframe
+MAP_bar_plot_df <- data.frame(MAP_FS_output$`Time boundaries`,
+                          MAP_FS_output$`Percent (%) population`)
+
+# Check  
+# bar_plot_df  
+
+# Rename columns 
+colnames(MAP_bar_plot_df)
+names(MAP_bar_plot_df)[1] <- "Time-boundary"
+names(MAP_bar_plot_df)[2] <- "% Population"
+colnames(MAP_bar_plot_df)
+
+# Check  
+# bar_plot_df  
+
+# Create bar plot
+MAP_FS_barplot <- 
+  
+  ggplot(data = MAP_bar_plot_df, aes(x = MAP_bar_plot_df$Zone, y = MAP_bar_plot_df$`% Population`)) +
+  geom_bar(aes(fill = "% Population"), width = 0.4, position = position_dodge(width=0.5), stat="identity") +
+  scale_x_discrete(limits = MAP_FS_barplot$Zone) +
+  theme_light() +
+  ylab("Percent (%) of population") +
+  xlab("Time-boundary category") +
+  ggtitle("Percent (%) of population residing within pre-defined time-boundaries from the closest 
+proximity health centre") +
+  theme(plot.title = element_text(size = 9),
+        legend.title = element_blank(),
+        axis.title=element_text(size = 9),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+# Check
+MAP_FS_barplot
 
 ```
 
