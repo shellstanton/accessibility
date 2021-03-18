@@ -15,7 +15,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-
 ### Overview
 
 This document aims to allow for fast and reproducible construction of friction surfaces detailing travel time to health facilities.
@@ -134,7 +133,7 @@ OR
 * Read in shapefile to define area of interest
 ```{r setup_area_of_interest}
 
-# * Detail limits of bounding box (llatitude/longitude maximum and minimum values, in WGS84) to be used as area of interest (aoi)
+# * Detail limits of bounding box (latitude/longitude maximum and minimum values, in WGS84) to be used as area of interest (aoi)
 bbxmin <- 33.2
 bbxmax <- 33.8
 bbymin <- -11.29
@@ -165,7 +164,7 @@ end_date   <-  "2018-09-30"
 
 
 1e. Setup: Define off-road (on-foot) travel speeds
-* Define walking travel speeds (non-vehicle, km/ hour) expected when traversing non-road pixels (defendant on NDVI value and customisable according to expected changes in travel speed, e.g., during the wet season).
+* Define off-road (on-foot) travel speeds (non-vehicle, km/ hour) expected when traversing non-road pixels (defendant on NDVI value and customisable according to expected changes in travel speed, e.g., during the wet season).
 ```{r setup_walking_travel_speeds}
 
 ## Define walking speeds (in Km/h) expected for the following NDVI values:
@@ -182,9 +181,8 @@ walk_speed_3 <- 2.48
 # NDVI value = > 0.7
 walk_speed_4 <- 1.49
 
-# These can be changed according to expected changes in walking speeds, e.g., during the wet season, etc.
-
 ```
+Off-road (on-foot) travel speeds can be changed according to expected changes in travel speeds, e.g., during the wet season, etc.
 
 
 1f. Setup: Define road travel speeds (km/ hour by motorcycle) for major and minor road types
@@ -199,9 +197,8 @@ major_road_speed <- 80
 # Minor roads: on which slower speeds would be expected (e.g., urban roads, dirt roads)
 minor_road_speed <- 20
 
-# These can be changed according to expected changes in travel speeds, e.g., during the wet season, etc.
-
 ```
+Road travel speeds can be changed according to expected changes in travel speeds, e.g., during the wet season, etc.
 
 
 1g. Setup: Population parameters
@@ -389,6 +386,7 @@ q <- opq(bbox = aoi_bbox) %>%
      add_osm_feature(key = 'highway') %>%
      osmdata_sf()
 
+
 # Plot road data to check
 ggplot(q$osm_lines) + 
   geom_sf()
@@ -434,7 +432,6 @@ ndvi_assigned <- reclassify(ndvi_assigned, ndviwalk_mat)
 
 ```
 
-
 8b: Assign on-road (by motor vehicle) travel speeds to OpenStreetMaps (OSM) road data
 *Again, need to document how these speeds are determined and how they may vary by season*.
 * We are currently using national speed limits as a maximum for primary and major roads.
@@ -459,7 +456,6 @@ osm_road_raster <- fasterize(roads.poly, ndvi_assigned, "time_secs", fun = 'min'
 ```
 
 
-
 9. Merge ‘NVDI’ raster (ndvi_assigned) and road-data raster (osm_road_raster)
 * The next step is to merge data for on-road and off-road travel to create one cohesive friction surface.
 * In areas where "road" and "off-road" cells overlap, the road values will be retained as these will be associated with the lowest cost (quickest speed).
@@ -479,13 +475,18 @@ writeRaster(friction_surface_motor,
 
 ### Heatlh facility data
 10. Download and prepare health facility location data
-* Download prepare and view health facility location data from a World Health Organisation (WHO) database.
+* Download prepare and view health facility location data from a World Health Organisation (WHO) database
 * WHO health facility location data is obtained using the afrihealthsites function, as part of the afrimapr/afrihealthsites package.
 ```{r}
 
 ## WHO data
 mwi_healthfac_who <-  afrihealthsites(coi,
                                       datasource = 'who')
+
+# Check
+# mwi_healthfac_who_df <- as.data.frame(mwi_healthfac_who)
+# nrow(mwi_healthfac_who_df)
+
 
 # Covert to SpatialPointsDataFrame class
 mwi_healthfac_who_spdf <- as(mwi_healthfac_who, "Spatial")
@@ -500,102 +501,12 @@ mwi_healthfac_who_data <- as.data.frame(mwi_healthfac_who_spdf_cropped)
 # View(mwi_healthfac_who_data)
 # kable(mwi_healthfac_who_data)
 
-
-
-#################################################################################################################################################################
-## 'Healthsites' data
-mwi_healthfac_healthsites <-  afrihealthsites(coi,
-                                              datasource = 'healthsites')
-
-# Check
-# View(mwi_healthfac_healthsites)
-
-# Covert to SpatialPointsDataFrame
-mwi_healthfac_healthsites_spdf <- as(mwi_healthfac_healthsites, "Spatial")
-# SpatialPointsDataFrame 
-
-# Crop to extent of 'friction_surface_motor' raster
-mwi_healthfac_healthsites_spdf_cropped <- raster::crop(mwi_healthfac_healthsites_spdf, y = extent(friction_surface_motor))
-mwi_healthfac_healthsites_spdf_cropped
-# NULL = no healthfacility data for aoi?
-
-
-
-
-## Data: https://zenodo.org/record/3871224#.YCuhSC2cYlk
-# Downloaded Malawi health facility data and stored within folder "malawi_health_facility_data" (within working directory)
-
-# Read in Malawi health facility data
-# install.packages("readxl")
-library(readxl)
-mwi_mfl <- read_excel("./malawi_health_facility_data/malawi_june_2020.xlsx")
-# Check
-# View(mwi_mfl)
-
-# Remove 'Non-functional' facilities
-mwi_mfl <- subset(mwi_mfl, STATUS!= "Non-functional")
-# Check
-# View(mwi_mfl)
-class(mwi_mfl)
-
-# Convert to dataframe
-mwi_mfl <- as.data.frame(mwi_mfl)
-# Check
-class(mwi_mfl)
-# data.frame
-# Check
-View(mwi_mfl)
-
-# Change class of LATITUDE and LONGITUDE columns (currently 'character') to 'numeric'
-class(mwi_mfl$LATITUDE)
-class(mwi_mfl$LONGITUDE)
-# Latitude and Longitude are character values: convert them to numeric
-mwi_mfl$LATITUDE <- as.numeric(as.character(mwi_mfl$LATITUDE))
-mwi_mfl$LONGITUDE <- as.numeric(as.character(mwi_mfl$LONGITUDE))
-# Check
-class(mwi_mfl$LATITUDE)
-class(mwi_mfl$LONGITUDE)
-# Both numeric
-class(mwi_mfl)
-# data.frame
-View(mwi_mfl)
-
-# Remove any rows with 'NA' data within either LATITUDE or LONGITUDE columns
-# library(tidyr)
-mwi_mfl <- drop_na(mwi_mfl, "LATITUDE", "LONGITUDE")
-# Check
-View(mwi_mfl)
-# Checked for 'NA' and no NA cells found, also equal number of rows
-class(mwi_mfl)
-# data.frame
-
-
-## Create SpatialPointsDataFrame (with CRS of 'friction_surface_motor')
-mwi_mfl_spdf <- mwi_mfl
-# There's a few points which aren't in lat/long format and should be removed
-erroneous_list <- c("MC010002", "BT240003", "BT240005", "BT240006", "BLK170117", 
-                    "BLK170288", "BLK170372", "MC010564", "MHG190985", "MHG191025")
-# Remove
-mwi_mfl_spdf <- mwi_mfl_spdf[which(!(mwi_mfl_spdf$CODE %in% erroneous_list)), ]
-
-# Convert to a spatial object
-coordinates(mwi_mfl_spdf) <- ~ LONGITUDE + LATITUDE 
-proj4string(mwi_mfl_spdf) <- CRS("+proj=longlat +datum=WGS84 +no_defs")
-
-# Crop to extent of 'friction_surface_motor' raster
-mwi_mfl_cropped <- raster::crop(mwi_mfl_spdf, y = extent(friction_surface_motor))
-# mwi_mfl_cropped
-# SpatialPointsDataFrame
-HF_list_MFL <- as.data.frame(mwi_mfl_cropped)
-kable(HF_list_MFL)
-#################################################################################################################################################################
-
 ```
 
 
 
 ### Calculate shortest paths
-11. Calculate shortest paths
+11. Calculate shortest paths (quickest time) from the closest-proximity health facility
 ```{r, warning=FALSE}
 
 # First calculate the transition matrix
@@ -615,7 +526,7 @@ writeRaster(leastcost_motor,
 
 
 ### Create plot
-12. Create plot to visualise 'leastcost_motor' raster data
+12. Create plot to visualise 'leastcost_motor' raster data (cost-distance analysis from closest-proximity health facility)
 ```{r, warning=FALSE}
 
 ## warning for removing NA pixels is masked
@@ -854,9 +765,9 @@ colnames(bar_plot_df)
 # Create bar plot
 FS_barplot <- 
   
-  ggplot(data = bar_plot_df, aes(x = bar_plot_df$Zone, y = bar_plot_df$`% Population`)) +
+  ggplot(data = bar_plot_df, aes(x = bar_plot_df$`Time-boundary`, y = bar_plot_df$`% Population`)) +
   geom_bar(aes(fill = "% Population"), width = 0.4, position = position_dodge(width=0.5), stat="identity") +
-  scale_x_discrete(limits = bar_plot_df$Zone) +
+  scale_x_discrete(limits = bar_plot_df$`Time-boundary`) +
   theme_light() +
   ylab("Percent (%) of population") +
   xlab("Time-boundary category") +
@@ -874,931 +785,3 @@ FS_barplot
 ```
 
 
-HF comparison Bar Plot (*Delete*)
-```{r}
-
-
-# Create  dataframe
-bar_plot_df <- data.frame(c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours"),
-                          lcm_rcl_zone_df$"% Population",
-                          c(37, 65.4, 90.3, 97.3, 99.9, 100))
-
-# Check  
-bar_plot_df  
-
-# Rename columns 
-colnames(bar_plot_df)
-names(bar_plot_df)[1] <- "Zone"
-names(bar_plot_df)[2] <- "% Population: WHO database"
-names(bar_plot_df)[3] <- "% Population: MFL database"
-colnames(bar_plot_df)
-
-# Check  
-bar_plot_df  
-
-# Melt using `melt()`function from `reshape2` package
-# library(reshape2)
-bar_plot_df <- melt(bar_plot_df)
-# Check
-View(bar_plot_df)
-
-
-# Create bar plot
-FS_barplot <- 
-  
-  ggplot(data = bar_plot_df, aes(Zone, value)) +
-  geom_bar(aes(fill = variable), width = 0.4, position = position_dodge(width=0.5), stat="identity") +
-  scale_x_discrete(limits = bar_plot_df$Zone[1:6]) +
-  theme_light() +
-  ylab("Percent (%) of population") +
-  xlab("Time-boundary category (Travel time from closest-proximity health facility)") +
-  ggtitle("Percent (%) of population within area of interest residing within pre-defined time-boundaries of 
-the closest-proximity health facility according to health facility data obtained from World Health 
-Organisation (WHO) and Master Health Facility (MFL) Registry of Malawi databases") +
-  theme(plot.title = element_text(size = 10, hjust = 0.5),
-        legend.title = element_blank(),
-        axis.title=element_text(size = 10),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  scale_fill_discrete(labels = c("WHO database", "MFL database"))
-
-
-# Check
-FS_barplot
-
-```
-
-
-MAP comparison Bar Plot (*Delete*)
-```{r}
-
-
-# Create  dataframe
-bar_plot_MAP_df <- data.frame(c("< 30 minutes", "< 1 hour", "< 3 hours", "< 6 hours", "< 12 hours", "< 24 hours"),
-                          c(37, 65.4, 90.3, 97.3, 99.9, 100),
-                          c(96.3, 99.2, 100, 100, 100, 100))
-
-# Check  
-bar_plot_MAP_df  
-
-# Rename columns 
-colnames(bar_plot_MAP_df)
-names(bar_plot_MAP_df)[1] <- "Zone"
-names(bar_plot_MAP_df)[2] <- "% Population: Our friction surface"
-names(bar_plot_MAP_df)[3] <- "% Population: Malaria Atlas Project friction surface"
-colnames(bar_plot_MAP_df)
-
-# Check  
-bar_plot_MAP_df  
-
-# Melt using `melt()`function from `reshape2` package
-# library(reshape2)
-bar_plot_MAP_df <- melt(bar_plot_MAP_df)
-# Check
-View(bar_plot_MAP_df)
-
-
-# Create bar plot
-FS_MAP_barplot <- 
-  
-  ggplot(data = bar_plot_MAP_df, aes(Zone, value)) +
-  geom_bar(aes(fill = variable), width = 0.4, position = position_dodge(width=0.5), stat="identity") +
-  scale_x_discrete(limits = bar_plot_df$Zone[1:6]) +
-  theme_light() +
-  ylab("Percent (%) of population") +
-  xlab("Time-boundary category (Travel time from closest-proximity health facility)") +
-  ggtitle("Percent (%) of population within area of interest residing within pre-defined time-boundaries 
-  of the closest-proximity health facility according to our friction surface and the Malaria Atlas 
-  Project friction surface when using health facility data obtained from the Master Health Facility 
-  (MFL) Registry of Malawi") +
-  theme(plot.title = element_text(size = 10, hjust = 0.5),
-        legend.title = element_blank(),
-        axis.title=element_text(size = 9),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  scale_fill_discrete(labels = c("Our friction surface", "Malaria Atlas Project 
-friction surface"))
-
-
-# Check
-FS_MAP_barplot
-
-```
-
-Just trying to make nice figure *delete*
-```{r}
-
-bound_districts <- 
-  st_read("Bounds/mwi_1.gpkg", quiet = TRUE)
-
-plot(st_geometry(bound_districts))
-
-
-```
-
-
-
-
------ ### Other method attempts 
-
-
-Option 1: Generate time-boundary polygons from 'lcm_pop_data_rcl' and submit to WorldPop.
-```{r isolate_time_boundary_polygons, include=FALSE}
-
-
-test <- rasterToPolygons(lcm_pop_data_rcl, 
-                         dissolve = TRUE)
-
-# Ran for 3 hours+ and did not complete 
-
-```
-
-
-Option 2: Reclassify 'leastcost_motor', create polygon (using 'stars' package), save and and submit to WorldPop. 
-```{r}
-
-# Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
-View(lcm_df)
-lcm_df$layer = NULL
-View(lcm_df)
-
-# Create raster
-lcm_raster <- rasterFromXYZ(lcm_df)
-plot(lcm_raster)
-
-# Create matrix
-rcl_matrix <- c(0, 30, 1, # 30 minutes
-                30, 60, 2, # 1 hour
-                60, 180, 3, # 3 hours
-                180, 360, 4, # 6 hours 
-                360, 720, 5, # 12 hours
-                720, 100000, 6 # 12+ hours
-)
-
-rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
-# Check
-View(rcl_matrix)
-
-# Reclassify 'lcm_raster' with 'rcl_matrix' 
-lcm_pop_data_rcl <- reclassify(lcm_raster, rcl_matrix, include.lowest=TRUE)
-lcm_pop_data_rcl
-
-
-## Attemot to conver 'lcm_pop_data_rcl' to polygons using following:
-# * rasterToPolygons() function
-# * 'FKR' package
-# * 'stars' package
-
-
-## rasterToPolygons() function
-# Attempted to convert lcm_pop_data_rcl to polygon(s) using 'rasterToPolygons' but took 3+ hours and so canceled (see: Option 1)
-
-
-## 'FKR' package
-# Install/load 'FKR' package
-# install.packages("FRK")
-library(FRK)
-
-# Create dataframe from 'lcm_pop_data_rcl' (reclassified data)
-lcm_rcl_pop_data_df <- as.data.frame(lcm_pop_data_rcl, xy = TRUE)
-View(lcm_rcl_pop_data_df)
-
-# Create spatialpolygon(s) from 'lcm_rcl_pop_data_df'
-lcm_rcl_pop_data_polygons <- df_to_SpatialPolygons(lcm_rcl_pop_data_df, "mins", c("x","y"), CRS())
-
-# Check
-plot(lcm_rcl_pop_data_polygons)
-lcm_rcl_pop_data_polygons
-# spatialpolygons
-
-# Save as shapefile to be uploaded to WorldPop
-library(rgdal)
-writeOGR(lcm_rcl_pop_data_polygons, 
-         dsn = './lcm_rcl_polygons/lcm_rcl_polygons', 
-         layer = 'lcm_rcl_polygons', 
-         driver = "ESRI Shapefile")
-# Error in writeOGR(lcm_rcl_pop_data_polygons, dsn = "lcm_rcl_pop_data_polygons_shp",  : obj must be a SpatialPointsDataFrame, SpatialLinesDataFrame or SpatialPolygonsDataFrame
-
-# FKR' package: Did not work - unable to save spatialpolygon as shapefile.
-
-
-## 'stars' package
-
-# Set CRS of 'lcm_pop_data_rcl' to that of 'leastcost_motor'
-crs(leastcost_motor)
-# +proj=longlat +datum=WGS84 +no_defs 
-
-projection(lcm_pop_data_rcl) <- crs(leastcost_motor)
-crs(lcm_pop_data_rcl)
-
-# Load 'stars' package
-library(stars)
-
-# Convert 'lcm_pop_data_rcl' from rasterlayer to 'stars' object
-lcm_pop_data_rcl_stars <- st_as_stars(lcm_pop_data_rcl)
-lcm_pop_data_rcl_stars
-# stars object
-
-# Check
-plot(lcm_pop_data_rcl_stars)
-
-# convert stars object to sf object
-lcm_pop_data_rcl_stars_sf <- st_as_sf(lcm_pop_data_rcl_stars,
-                                      as_points = FALSE,
-                                      merge = TRUE)
-
-# Check
-plot(lcm_pop_data_rcl_stars_sf)
-lcm_pop_data_rcl_stars_sf
-# geometry type: POLYGON
-# CRS has been set
-
-# Save as polygon
-st_write(lcm_pop_data_rcl_stars_test,
-         dsn = "time_boundary_polygon", 
-         layer = "time_boundary_polygon", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-# Trying to send 22971 tasks...
-# WorldPop has a limit of 1000 tasks per day and would take hours to complete.
-
-
-## Attempt to:
-# *Dissolve polygon, or
-# * Aggregate polygon...
-
-
-## Dissolve using 'rmapshaper' package 
-# install.packages("rmapshaper")
-library(rmapshaper)
-
-# Dissolve using 'ms_dissolve'
-lcm_pop_data_rcl_stars_test_dissolve <- ms_dissolve(lcm_pop_data_rcl_stars_test)
-lcm_pop_data_rcl_stars_test_dissolve
-# geometry type: POLYGON
-
-# Save as polygon
-st_write(lcm_pop_data_rcl_stars_test_dissolve,
-         dsn = "time_boundary_polygon", 
-         layer = "time_boundary_polygon", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-# Error: Request failed :: Invalid Geometry Error. The GeoJSON contains invalid geometries: Self-intersection[33.1998464 -11.2301089] Please contact WorldPop. Reference task ID is 1a8843fc-6f92-5e8d-8961-7fd8d62c4ea7
-
-# contour to boundary lines
-lcm_pop_data_rcl_stars_sf =  st_contour(lcm_pop_data_rcl_stars, contour_lines = TRUE)
-
-# Check
-plot(lcm_pop_data_rcl_stars_sf)
-lcm_pop_data_rcl_stars_sf
-# geometry type: linestring
-# saved and attempted to submit to WorldPop but still submitted 16487 tasks...
-
-# Convert from linestring to polygon 
-lcm_pop_data_rcl_stars_sf_polygon <- st_cast(lcm_pop_data_rcl_stars_sf, "POLYGON")
-
-# Check
-plot(lcm_pop_data_rcl_stars_sf_polygon)
-lcm_pop_data_rcl_stars_sf_polygon
-# geometry type: POLYGON
-# *doesn't seem to work*: irregular shape when plotting
-
-
-## Aggregate polygon
-# lcm_pop_data_rcl_stars_sf_polygon_agg <- aggregate(lcm_pop_data_rcl_stars_sf_polygon)
-# Took 30+ minutes so canceled
-
-
-## Attempt 'ms_lines' function from 'rmapshaper' package to isolate time-boundary boarders
-library(rmapshaper)
-lcm_pop_data_rcl_stars_sf_polygon_lines <- ms_lines(lcm_pop_data_rcl_stars_sf_polygon)
-
-# Check
-lcm_pop_data_rcl_stars_sf_polygon_lines
-# geometry type: multilinestring
-
-# Convert to linestring using 'st_cast'
-lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines, "LINESTRING")
-lcm_pop_data_rcl_stars_sf_polygon_lines_cast
-# geometry type: linestring
-
-# Convert (cast) to polygon using 'st_cast'
-lcm_pop_data_rcl_stars_sf_polygon_lines_cast <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_lines_cast, "POLYGON")
-lcm_pop_data_rcl_stars_sf_polygon_lines_cast
-# Error: 'polygons require at least 4 points'
-
-# Dissolve using 'ms_dissolve'
-lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg <- ms_dissolve(lcm_pop_data_rcl_stars_sf_polygon)
-lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg
-# geometry type:multipolygon
-# saved as .shp but could not submit to WorldPop as not POLYGON...
-
-# use 'st_cast' again to convert (cast) from multipolygon to polygon
-lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon <- st_cast(lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg, "POLYGON")
-# lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon
-# geometry type: POLYGON
-
-# Check
-# plot(lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon)
-
-# Save as polygon
-st_write(lcm_pop_data_rcl_stars_sf_polygon_dissolve_agg_polygon,
-         dsn = "time_boundary_polygon", 
-         layer = "time_boundary_polygon", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./time_boundary_polygon/time_boundary_polygon.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-## PRE-st_dissolve: Trying to send 16487 tasks...
-## POST-st_dissolve: Trying to send 9222 tasks...
-
-# Still attempting to upload far too many tasks.
-
-```
-
-
-Option 3: Subset time-boundary data from data.frame, create polygon(s) and submit to WorldPop.
-```{r subset_dataframe_and_submit_polygon_to_WorldPop, include=FALSE}
-
-# Load dplyr
-library(dplyr)
-
-# View dataset
-View(lcm_df)
-
-# Subset by < 30 mins 
-thirty_min <- lcm_df[lcm_df$mins < 30, ]
-
-# Check
-View(thirty_min)
-
-# Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
-thirty_min$layer <- NULL
-
-# Check with plot
-ggplot()+geom_raster(data=thirty_min, aes(x = x, y = y, fill = cut(mins, c(0,30,max(mins)))))+
-    scale_fill_brewer(palette = "YlGnBu")+
-    geom_sf(data=q$osm_lines, colour="darkgrey", alpha=0.3)+
-    geom_sf(data=healthfac, size=2, colour="red")+
-    guides(fill=guide_legend(title="Time (mins)"))
-
-# Create raster
-thirty_min_raster <- rasterFromXYZ(thirty_min)
-
-# Check
-View(thirty_min_raster)
-thirty_min_raster
-# RasterLayer
-# No CRS assigned...
-
-plot(thirty_min_raster)
-
-# Create polygon (takes ~5 mins)
-thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
-
-# Check
-thirty_min_polygon
-# Is a SpatialPolygonsDataFrame (spdf)
-
-plot(thirty_min_polygon)
-# A solid shape, whereas we need boundary data
-
-# Aggregate 'thirty_min_polygon' to give boundary 
-thirty_min_polygon_agg <- aggregate(thirty_min_polygon)
-
-# Check
-# plot(thirty_min_polygon_agg)
-
-thirty_min_polygon_agg
-# Class: SpatialPolygons 
-
-# Save as shapefile
-writeOGR(thirty_min_polygon_agg_df, dsn = "thirty_min_polygon_agg_df", layer = "thirty_min_polygon_agg_df", driver = "ESRI Shapefile", overwrite=TRUE)
-# Cannot save as shapefile as 'thirty_min_polygon_agg' is 'SpatialPolygons' and needs to be 'SpatialPolygonsDataFrame'
-
-# Convert 'thirty_min_polygon_agg' to SpatialPolygonsDataFrame
-thirty_min_polygon_agg_df <- SpatialPolygonsDataFrame(thirty_min_polygon_agg, data = as.data.frame("thirty_min_polygon_agg_df"))
-# Saves as SpatialPolygonsDataFrame (not polygon)
-
-## Install and use wpCPR : An R package to submit a custom polygon request to the WorldPop API
-# install.packages("devtools")
-# devtools::install_github("wpgp/wpCPR")
-
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./thirty_min_polygon_agg_df/thirty_min_polygon_agg_df.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-## Error: Request failed :: Unsupported Geometry:  This operation supports only Polygons.
-
-```
-Unable to save SpatialPolygonsDataFrame as Polygon shapefile and so cannot upload to WorldPop...
-
-
-Option 4: Download raster from WorlPop ATP to obtain resolution, aggregate 'lcm_raster' to WorldPop resolution, reclassify using 'rcl_matrix', reclassify to just keep group 1 (or whichever), make a stars object, transform to polygon, simplify and/or dissolve polygon and submit to WorldPop. 
-```{r}
-
-## Install 'wpgpDownloadR' package
-# devtools::install_github("wpgp/wpgpDownloadR")
-
-# load package
-library(wpgpDownloadR)
-
-## Download ISO3 dataframe to obtain ISO3 info
-# 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
-ISO3_df <- wpgpListCountries()
-# View(ISO3_df)
-
-# Set country of interest (move to beginning of script within initial setup phase?)
-coi <- "Malawi"
-
-# Ascertain ISO3 of Malawi
-ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
-ISO3
-# MWI
-
-# 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
-# This function could be used to query the name of the dataset which then could be downloaded for a country.
-covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
-
-# Check data and check for covariates of interest
-# View(covariates)
-
-# 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
-wpgpGetCountryDataset(ISO3 = ISO3,
-                      covariate = "ppp_2020",
-                      destDir = "./WorldPop")
-
-## .tif file is ~50 MB
-# Read in .tif file
-pop_data <- "./WorldPop/mwi_ppp_2020.tif"
-pop_data <- raster(pop_data)
-
-# Check
-pop_data
-# plot(pop_data)
-
-
-## Create rasterlayer from 'lcm_df' (remove 'layer' column prior)
-View(lcm_df)
-lcm_df$layer = NULL
-View(lcm_df)
-
-# Create raster
-lcm_raster <- rasterFromXYZ(lcm_df)
-lcm_raster
-plot(lcm_raster)
-
-
-# Set CRS
-crs(leastcost_motor)
-# +proj=longlat +datum=WGS84 +no_defs 
-lcm_crs <- crs(leastcost_motor)
-lcm_crs
-
-projection(lcm_raster) <- lcm_crs
-lcm_raster
-# CRS set
-
-## Aggregate 'lcm_raster' to same resolution as WorldPop raster
-
-# Divide WorldPop raster resolution by 'leastcost_motor' resolution to give multiplication factor
-res(pop_data)
-# 0.0008333333 0.0008333333
-pop_data_res <- res(pop_data)
-
-res(lcm_raster)
-# 0.0002694946 0.0002694946
-lcm_res <- res(lcm_raster)
-
-# Division
-multiplication_factor <- pop_data_res / lcm_res
-multiplication_factor
-# 3.092208 3.092208
-
-## Aggregate 'lcm_raster' to same resolution as WorldPop raster
-agg_test <- aggregate(lcm_raster, fact = multiplication_factor)
-# Check
-plot(agg_test)
-res(agg_test)
-# 0..0008084838 0.0008084838 ???
-
-# Check as data.frame
-agg_test_df <- as.data.frame(agg_test, xy = TRUE)
-View(agg_test_df)
-
-## Reclassify 'agg_test_df'
-
-# Create matrix
-rcl_matrix <- c(0, 30, 1, # 30 minutes
-                30, 60, 2, # 1 hour
-                60, 180, 3, # 3 hours
-                180, 360, 4, # 6 hours 
-                360, 720, 5, # 12 hours
-                720, 100000, 6 # 12+ hours
-)
-
-rcl_matrix <- matrix(rcl_matrix, ncol=3, byrow=TRUE)
-# Check
-View(rcl_matrix)
-
-# Reclassify 'agg_test' with 'rcl_matrix' 
-agg_test_reclass <- reclassify(agg_test, rcl_matrix, include.lowest=TRUE)
-agg_test_reclass
-
-## Make a new layer which is the whole raster, then reclassify to keep group 1
-group_1 <- agg_test_reclass
-
-# Make other categories NA
-group_1 <- reclassify(group_1, c(1, 6, NA))
-
-# make this a stars object
-group_1_stars <- st_as_stars(group_1)
-plot(group_1_stars)
-
-# Transform to polygon
-group_1_poly <- st_as_sf(group_1_stars, merge = TRUE, long = FALSE)
-
-group_1_poly <- st_make_valid(group_1_poly)
-
-group_1_poly_combine <- st_combine(group_1_poly)
-
-# Simplify geometry 
-library(rmapshaper)
-group_1_poly_simp <- ms_simplify(group_1_poly_combine, explode = TRUE)
-
-# cast back to polygon
-group_1_poly_simp_poly <- st_cast(group_1_poly_simp, "POLYGON")
-
-# Dissolve 'group_1_poly_simp', then transform back to polygon
-group_1_poly_simp_dis <- ms_dissolve(group_1_poly_simp)
-group_1_poly_simp_dis_poly <- st_cast(group_1_poly_simp_dis, "POLYGON")
-
-# Check polygons
-group_1_poly_simp_poly
-group_1_poly_simp_dis_poly
-# Both POLYGON
-# Both have CRS set
-
-# Save both as polygons
-st_write(group_1_poly_simp_poly,
-         dsn = "group_1_poly_simp_poly", 
-         layer = "group_1_poly_simp_poly", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-st_write(group_1_poly_simp_dis_poly,
-         dsn = "group_1_poly_simp_dis_poly", 
-         layer = "group_1_poly_simp_dis_poly", 
-         driver = "ESRI Shapefile", 
-         overwrite  = TRUE)
-
-## Submit to WorldPop
-# load package
-library(wpCPR)
-
-wpCPRPopulation (year=2020,
-                 shapeFilePath = "./group_1_poly_simp_poly/group_1_poly_simp_poly.shp",
-                 outputFilePath = NULL,
-                 apikey = NULL,
-                 callbacktime = 5,
-                 maxexectime = 3600,
-                 apiurl = NULL,
-                 verbose = TRUE)
-
-## Error: "Unsupported Geometry:  This operation supports only polygons" (Even though both are polygons...)
-
-```
-
-
-Option 5: Repeat Option 4 but attempt to upload polygon to WorldPop *via wopr package*
-```{r}
-
-# 'wopr' is an R package that provides API access to the WorldPop Open Population Repository. This gives users the ability to:
-
-# Download WorldPop population data sets directly from the R console,
-# Submit spatial queries (points or polygons) to the WorldPop server to retrieve population estimates within user-defined geographic areas,
-# Get estimates of population sizes for specific demographic groups (i.e. age and sex), and
-# Get probabilistic estimates of uncertainty for all population estimates.
-# Run the woprVision web application locally from the R console.
-
-
-# Install 'wopr'
-devtools::install_github('wpgp/wopr')
-library(wopr)
-
-# Check polygons
-group_1_poly_simp_poly
-plot(group_1_poly_simp_poly)
-
-group_1_poly_simp_dis_poly
-plot(group_1_poly_simp_dis_poly)
-# Both POLYGON
-# Both have CRS set
-
-WP_catalogue <- getCatalogue(spatial_query=T)
-View(WP_catalogue)
-
-# Upload polygon to WorldPop
-pop_test_multi_polygon <- woprize(features = group_1_poly_simp_poly, 
-                                  country = ISO3, 
-                                  version = '1.2',
-                                  agesex_select = FALSE,
-                                  confidence = 0.95,
-                                  tails = 2,
-                                  abovethresh = 2e4,
-                                  belowthresh = 1e4
-                                  )
-
-# Error: Error in 1:nrow(features) : argument of length 0
-
-# Try with 'lcm_pop_data_rcl_stars_test' 
-pop_table_test <- woprize(features = group_1_poly_simp_dis_poly, 
-                          country=ISO3, 
-                          version='1.2',
-                          confidence=0.95,
-                          tails=2,
-                          abovethresh=2e4,
-                          belowthresh=1e4
-                          )
-
-# Error: Exceeds 1000 tasks...
-
-
-# Test
-pop_test_single_polygon <- getPop(feature= group_1_poly_simp_poly[1,], 
-                           country = 'ISO3', 
-                           version = 'v1.2')
-
-summaryPop(N, confidence=0.95, tails=2, abovethresh=1e2, belowthresh=50)
-
-```
-
-
-Option 6: Download population rasters from WorldPop, subset time-boundary data, create polygon(s) and extract population numbers from population rasters using polygon(s) (Working). 
-```{r download_population_data_raster, include=FALSE}
-
-## Install and use wpgpCovariates: an R Package interface for downloading raster datasets from WorldPop FTP.
-# install.packages("devtools")
-
-# devtools::install_github("wpgp/wpgpDownloadR")
-
-# load package
-library(wpgpDownloadR)
-
-## Download ISO3 dataframe to obtain ISO3 info
-# 'wpgpListCountries' function will return a dataframe with all ISO3 available on WorldPop ftp server.
-ISO3_df <- wpgpListCountries()
-
-# View(ISO3_df)
-
-# Set country of interest (move to beginning of script within initial setup phase?)
-coi <- "Malawi"
-
-# Ascertain ISO3 of Malawi
-ISO3 <- ISO3_df[ISO3_df$Country == coi, "ISO3"]
-ISO3
-
-# 'wpgpListCountryDatasets' function will return a dataframe of available covariates to download from WorldPop FTP for a country. 
-# This function could be used to query the name of the dataset which then could be downloaded for a country.
-covariates <- wpgpListCountryDatasets(ISO3 = ISO3)
-
-# Check data and check for covariates of interest
-View(covariates)
-
-# 'wpgpGetCountryDataset' function will download a raster dataset based on ISO and covariate name
-wpgpGetCountryDataset(ISO3 = ISO3,
-                      covariate = "ppp_2020",
-                      destDir = "./WorldPop")
-
-## .tif file is ~50 MB
-# Read in .tif file
-pop_data <- "./WorldPop/mwi_ppp_2020.tif"
-
-# Create raster
-pop_data <- raster(pop_data)
-
-# Check
-pop_data
-
-# plot(pop_data)
-
-# Check resolution
-res(pop_data)
-# 0.0008333333 0.0008333333
-
-# Check raster resampling to ('leastcost_motor')
-leastcost_motor
-res(leastcost_motor)
-# 0.0002694946 0.0002694946
-
-## Need to resample to match resolution
-pop_data <- resample(pop_data, leastcost_motor, method = "bilinear")
-
-# Check
-res(pop_data) == res(leastcost_motor)
-# True
-
-# plot(pop_data)
-
-## Has also clipped raster to match extent of 'leastcost_motor'
-extent(pop_data) == extent(leastcost_motor)
-# True
-crs(pop_data)
-# WGS84
-crs(leastcost_motor)
-# WGS84
-
-## merge the pop_data and the leastcost_motor ???
-leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
-
-leastcost_motor_pop
-
-extent(leastcost_motor_pop) == extent(leastcost_motor)
-# True!
-
-crs(leastcost_motor_pop)
-# WGS84
-
-# Save raster
-writeRaster(leastcost_motor_pop,
-            "./WorldPop/pop_data",
-            format = "GTiff", 
-            overwrite=TRUE)
-
-
-### 30 minutes
-
-# Create data.frame from 'lcm_df'
-leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
-
-View(leastcost_motor_pop_df)
-
-# Subset data.frame by <30 minutes
-thirty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 30, ]
-
-# Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
-thirty_min$layer <- NULL
-
-# Create raster
-thirty_min_raster <- rasterFromXYZ(thirty_min)
-
-# Check
-# View(thirty_min_raster)
-thirty_min_raster
-# RasterLayer
-# No CRS assigned...
-
-plot(thirty_min_raster)
-
-# Create polygon (takes ~5 mins)
-# thirty_min_polygon <- rasterToPolygons(thirty_min_raster, dissolve = TRUE)
-
-# Check
-thirty_min_polygon
-# Is a SpatialPolygonsDataFrame (spdf)
-# Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
-
-plot(thirty_min_polygon)
-# A solid shape, whereas we need boundary vector
-
-# Aggregate 'thirty_min_polygon' to give boundary 
-thirty_min_polygoy_agg <- aggregate(thirty_min_polygon)
-
-# Check
-plot(thirty_min_polygoy_agg)
-
-# Extract and sum population data from 'pop_data' by using 'thirty_min_polygoy_agg'
-thirty_min_pop <- extract(pop_data, thirty_min_polygoy_agg, fun = sum, na.rm = TRUE)
-thirty_min_pop
-# 281609.2
-
-
-### 60 minutes
-
-# Create data.frame from 'lcm_df'
-leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
-
-# Create data.frame from 'lcm_df'
-leastcost_motor_pop_df <- as.data.frame(lcm_df, xy = TRUE)
-
-View(leastcost_motor_pop_df)
-
-# Subset data.frame by <60 minutes
-sixty_min <- leastcost_motor_pop_df[leastcost_motor_pop_df$mins < 60, ]
-
-# Remove 'layer' collumn to give just three rows (needed for 'rasterfromXYZ' function)
-sixty_min$layer <- NULL
-
-View(sixty_min)
-
-# Create raster
-sixty_min_raster <- rasterFromXYZ(sixty_min)
-
-# Check
-# View(sixty_min_raster)
-sixty_min_raster
-# RasterLayer
-# No CRS assigned...
-
-plot(sixty_min_raster)
-
-# Create polygon (takes ~10 mins)
-sixty_min_polygon <- rasterToPolygons(sixty_min_raster, dissolve = TRUE)
-
-# Check
-sixty_min_polygon
-# Is a SpatialPolygonsDataFrame (spdf)
-# Has no CRS? Attempted to assign WGS84 but was then unable to use plot() function...
-
-plot(sixty_min_polygon)
-# A solid shape, whereas we need boundary vector
-
-# Aggregate 'sixty_min_polygon' to give boundary 
-sixty_min_polygoy_agg <- aggregate(sixty_min_polygon)
-
-# Check
-plot(sixty_min_polygoy_agg)
-
-# Extract and sum population data from 'pop_data' by using 'sixty_min_polygoy_agg'
-sixty_min_pop <- extract(pop_data, sixty_min_polygoy_agg, fun = sum, na.rm = TRUE)
-
-sixty_min_pop
-# 799607.3
-
-```
-### Working but generating polygon for time-boundaries takes a long time (30 min ~5 mins to generate, 60 min ~20 mins to generate...)
-
-
-
-
-
-
-
-##### *Old chunk used to merge raster files*
-```{r merge_and_write_raster}
-
-##  Merge 'pop_data' and 'leastcost_motor'
-
-# Merge
-leastcost_motor_pop <- mosaic(pop_data, leastcost_motor, fun = min, tolerance = 1)
-
-# Check
-leastcost_motor_pop
-
-# Check CRS
-crs(leastcost_motor_pop)
-# WGS84
-
-# Save as raster
-writeRaster(leastcost_motor_pop,
-            "./WorldPop/pop_data",
-            format = "GTiff", 
-            overwrite=TRUE)
-
-```
